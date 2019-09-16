@@ -1,4 +1,4 @@
-folder_path = "/home/usi/Documents/Drone/FrontNetPorting"
+folder_path = "/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/DataProcessing"
 himax_width = 324
 himax_height = 244
 input_width = 108

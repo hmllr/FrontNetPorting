@@ -27,7 +27,7 @@ def TestInference():
 
 
 def MergeDatasets():
-    DATA_PATH = "/Users/usi/PycharmProjects/data/"
+    DATA_PATH = "/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/DataProcessing/data/"
 
     dataset = pd.read_pickle(DATA_PATH + "train.pickle").values
     dataset2 = pd.read_pickle(DATA_PATH + "TrainNicky.pickle").values
@@ -47,7 +47,7 @@ def Train():
     model = FrontNet(PreActBlock, [1, 1, 1], False)
     trainer = ModelTrainer(model)
 
-    DATA_PATH = "/Users/usi/PycharmProjects/data/"
+    DATA_PATH = "/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/DataProcessing/data/"
 
     [x_train, x_validation, y_train, y_validation] = DataProcessor.ProcessTrainData(
         DATA_PATH + "HandHead.pickle", 60, 108)
@@ -70,7 +70,7 @@ def TrainGray():
     summary(model, (1, 60, 108))
     trainer = ModelTrainer(model)
 
-    DATA_PATH = "/Users/usi/PycharmProjects/data/"
+    DATA_PATH = "/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/PyTorch/"
     [x_train, x_validation, y_train, y_validation] = DataProcessor.ProcessTrainData(
         DATA_PATH + "train_vignette4.pickle", 60, 108, True)
 
@@ -87,7 +87,7 @@ def TrainGray():
 
 
 def ConvertToGray():
-    DATA_PATH = "/Users/usi/PycharmProjects/data/"
+    DATA_PATH = "/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/DataProcessing/data/"
     DataProcessor.CreateGreyPickle(DATA_PATH + "train.pickle", 60, 108, "train_vignette4.pickle")
     DataProcessor.CreateGreyPickle(DATA_PATH + "test.pickle", 60, 108, "test_vignette4.pickle")
 

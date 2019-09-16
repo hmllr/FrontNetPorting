@@ -32,7 +32,7 @@ static void end_of_frame()
 	rt_cam_control(camera, CMD_PAUSE, NULL);
 
 	//WriteImageToFifo("../../../image_pipe", WIDTH, HEIGHT, L2_image);
-	WriteImageToFifo("/home/usi/Documents/Drone/FrontNetPorting/pulp/image_pipe", WIDTH, HEIGHT, L2_image);
+	WriteImageToFifo("/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/DataProcessing/pulp/image_pipe", WIDTH, HEIGHT, L2_image);
 
 
 	imgTransferDone = 1;

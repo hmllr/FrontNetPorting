@@ -12,9 +12,9 @@ import cv2
 import fcntl
 import sys
 
-sys.path.append("/home/usi/Documents/Drone/FrontNetPorting")
+sys.path.append("/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/DataProcessing")
 import config
-sys.path.append("/home/usi/Documents/Drone/FrontNetPorting/DataProcessing")
+sys.path.append("/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/DataProcessing/DataProcessing")
 from ImageTransformer import ImageTransformer
 
 

@@ -5,9 +5,9 @@ from DatasetCreator import DatasetCreator
 import pandas as pd
 
 import sys
-sys.path.append("/home/usi/Documents/Drone/FrontNetPorting/pulp")
+sys.path.append("/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/DataProcessing/pulp")
 from CameraCalibration import CameraCalibration 
-sys.path.append("/home/usi/Documents/Drone/FrontNetPorting")
+sys.path.append("/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/DataProcessing")
 import config
 
 def TestImageIO():

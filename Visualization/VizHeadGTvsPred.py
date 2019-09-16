@@ -187,7 +187,7 @@ def main():
     model = Dronet(PreActBlock, [1, 1, 1], True)
     ModelManager.Read('../PyTorch/Models/DronetGray.pt', model)
 
-    DATA_PATH = "/Users/usi/PycharmProjects/data/"
+    DATA_PATH = "/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/PyTorch/"
     [x_test, y_test] = DataProcessor.ProcessTestData(DATA_PATH + "test_vignette4.pickle", 60, 108, True)
 
     test_set = Dataset(x_test, y_test)
