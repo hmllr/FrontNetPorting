@@ -52,8 +52,8 @@ def VizDroneBEV(frames, labels, outputs, isGray=False):
 
     plot1gt, = plt.plot([], [], color='green', label='GT', linestyle='None', marker='o', markersize=10)
     plot1pr, = plt.plot([], [], color='blue', label='Prediction', linestyle='None', marker='o', markersize=10)
-    arr1gt = ax1.arrow([], [], np.cos([]), np.sin([]), head_width=0.1, head_length=0.1, color='green', animated=True)
-    arr1pr = ax1.arrow([], [], np.cos([]), np.sin([]), head_width=0.1, head_length=0.1, color='blue', animated=True)
+    #arr1gt = ax1.arrow([], [], np.cos([]), np.sin([]), head_width=0.1, head_length=0.1, color='green', animated=True)
+    #arr1pr = ax1.arrow([], [], np.cos([]), np.sin([]), head_width=0.1, head_length=0.1, color='blue', animated=True)
     plt.legend(loc='lower right', bbox_to_anchor=(0.8, 0.2, 0.25, 0.25))
 
     ax2 = plt.subplot2grid((h, w), (2, 8), rowspan=7)
@@ -61,6 +61,7 @@ def VizDroneBEV(frames, labels, outputs, isGray=False):
     ax2.yaxis.tick_right()
     ax2.set_xlim([-0.5, 0.5])
     ax2.set_xticklabels([])
+    ax2.set_ylim([-2, 2])
     ax2.yaxis.set_ticks([-1, 0, 1])  # set y-ticks
     ax2.xaxis.set_ticks_position('none')
     scatter2gt = plt.scatter([], [], color='green', label='GT', s=100)
