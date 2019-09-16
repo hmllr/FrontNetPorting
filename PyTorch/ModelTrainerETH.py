@@ -32,6 +32,8 @@ class ModelTrainer:
             self.optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
         self.relax = None
         self.folderPath = "Models/"
+        #self.train_losses_log = []
+        #self.val_losses_log = []
 
     def GetModel(self):
         return self.model
@@ -186,6 +188,7 @@ class ModelTrainer:
             train_loss_y.update(loss_y)
             train_loss_z.update(loss_z)
             train_loss_phi.update(loss_phi)
+            #self.train_losses_log.append(loss_x)
 
             if (i + 1) % 100 == 0:
                 logging.info("[ModelTrainer] Step [{}]: Average train loss {}, {}, {}, {}".format(i+1, train_loss_x.value, train_loss_y.value, train_loss_z.value,
@@ -224,6 +227,7 @@ class ModelTrainer:
                 valid_loss_y.update(loss_y)
                 valid_loss_z.update(loss_z)
                 valid_loss_phi.update(loss_phi)
+                #self.val_losses_log.append(loss_x)
 
                 outputs = torch.stack(outputs, 0)
                 outputs = torch.squeeze(outputs)
@@ -296,6 +300,7 @@ class ModelTrainer:
 
         DataVisualization.PlotGTandEstimationVsTime(gt_labels_viz, y_pred_viz)
         DataVisualization.PlotGTVsEstimation(gt_labels_viz, y_pred_viz)
+        #DataVisualization.PlotLossTest(self.train_losses_log, self.val_losses_log) #to display single and not averaged training/validation losses, uncomment there as well. Think about enough RAM
         DataVisualization.DisplayPlots()
 
     def PerdictSingleSample(self, test_generator):

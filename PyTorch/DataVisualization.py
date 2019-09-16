@@ -58,6 +58,27 @@ class DataVisualization:
 
         plt.savefig(DataVisualization.folderPath + DataVisualization.desc +'LearningCurves.png')
 
+    @staticmethod
+    def PlotLossTest(train_losses_x, valid_losses_x):
+
+        samples_train = range(1, len(train_losses_x) + 1)
+        samples_valid = range(1, len(valid_losses_x) + 1)
+
+        DataVisualization.figure_counter += 1
+        plt.figure(DataVisualization.figure_counter, figsize=(20, 12))
+        plt.margins(0.1)
+
+        gs = gridspec.GridSpec(2, 2)
+        ax = plt.subplot(gs[0, 0])
+        ax.set_title('x')
+
+
+        plt.plot(samples_train, train_losses_x, color='green', label='Training loss')
+        plt.plot(samples_valid, valid_losses_x, color='black', label='Validation loss')
+        plt.legend()
+
+        plt.savefig(DataVisualization.folderPath + DataVisualization.desc +'TestSingleLosses.png')
+
 
     @staticmethod
     def PlotMSE(MSE):
