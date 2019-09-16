@@ -2,9 +2,14 @@ import pandas as pd
 import numpy as np
 import random
 import logging
-import cv2
 import sys
+# try to remove ros because we need cv2 and the python2/3 paths get messed up with ros
+try:
+    sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
+except:
+    pass
 sys.path.append("../DataProcessing/")
+import cv2
 from ImageTransformer import ImageTransformer
 
 class DataProcessor:
