@@ -6,7 +6,7 @@
 #
 # This script runs a full precision training example
 
-CUDA_VISIBLE_DEVICES=1
+#CUDA_VISIBLE_DEVICES=1
 
-python3 ETH.py --regime regime.json --epochs 100 --gray 1 --load-trainset "/home/nickyz/data/train_vignette4.pickle" --load-testset "/home/nickyz/data/test_vignette4.pickle" --save-model "Models/DronetGray.pt" 
+python3 ETH.py --regime regime.json --epochs 1 --gray 1 --load-trainset "/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/PyTorch/train_vignette4.pickle" --quantize --load-testset "/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/PyTorch/test_vignette4.pickle" --load-model "Models/DronetGray-098.pt" --save-model "Models/DronetGray.pt" 
 
