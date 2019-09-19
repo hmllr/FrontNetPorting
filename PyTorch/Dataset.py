@@ -32,7 +32,7 @@ class Dataset(data.Dataset):
       table = self.it.adjust_gamma(gamma)
       X = cv2.LUT(X, table)
       X = np.reshape(X, (1, h, w))
-      X = torch.from_numpy(X).float()
+      X = torch.from_numpy(X).float().round()
 
       return X
 
@@ -47,7 +47,7 @@ class Dataset(data.Dataset):
       X = np.interp(X/255.0, [0, lo, hi, 1], [0, 0, 1, 1])
       X = 255 * X
       X = np.reshape(X, (1, h, w))
-      X = torch.from_numpy(X).float()
+      X = torch.from_numpy(X).float().round()
 
       return X
 
@@ -70,5 +70,4 @@ class Dataset(data.Dataset):
                 #    X = self.augmentGamma(X)
                 if np.random.choice([True, False]):
                     X = self.augmentDR(X)
-
         return X, y
