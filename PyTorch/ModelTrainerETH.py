@@ -241,7 +241,7 @@ class ModelTrainer:
 
         return valid_loss_x.value, valid_loss_y.value, valid_loss_z.value, valid_loss_phi.value, y_pred, gt_labels
 
-    def Train(self, training_generator, validation_generator):
+    def Train(self, training_generator, validation_generator, tb=None):
 
         metrics = Metrics()
         early_stopping = EarlyStopping(patience=10, verbose=True)
@@ -274,6 +274,124 @@ class ModelTrainer:
             MSE, MAE, r_score = metrics.Update(y_pred, gt_labels,
                                                [train_loss_x, train_loss_y, train_loss_z, train_loss_phi],
                                                [valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi])
+            train_total_loss = train_loss_x + train_loss_y + train_loss_z + train_loss_phi
+            valid_total_loss = valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi
+            if tb != None:
+                try:
+                    tb.add_scalar('Lossx/train', train_loss_x, epoch)
+                    tb.add_scalar('Lossy/train', train_loss_y, epoch)
+                    tb.add_scalar('Lossz/train', train_loss_y, epoch)
+                    tb.add_scalar('Lossphi/train', train_loss_phi, epoch)
+                    tb.add_scalar('TotalLoss/train', train_total_loss, epoch)
+                    tb.add_scalar('Lossx/valid', valid_loss_x, epoch)
+                    tb.add_scalar('Lossy/valid', valid_loss_y, epoch)
+                    tb.add_scalar('Lossz/valid', valid_loss_y, epoch)
+                    tb.add_scalar('Lossphi/valid', valid_loss_phi, epoch)
+                    tb.add_scalar('TotalLoss/valid', valid_total_loss, epoch)
+                except Exception as e:
+                    print(e)
+                #tb.add_scalar('ReLuStats/ReLu1/max',self.model.relu1.get_statistics()[0] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu1/mean',self.model.relu1.get_statistics()[1] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu1/var',self.model.relu1.get_statistics()[2] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu2/max',self.model.relu2.get_statistics()[0] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu2/mean',self.model.relu2.get_statistics()[1] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu2/var',self.model.relu2.get_statistics()[2] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu3/max',self.model.relu3.get_statistics()[0] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu3/mean',self.model.relu3.get_statistics()[1] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu3/var',self.model.relu3.get_statistics()[2] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu4/max',self.model.relu4.get_statistics()[0] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu4/mean',self.model.relu4.get_statistics()[1] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu4/var',self.model.relu4.get_statistics()[2] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu5/max',self.model.relu5.get_statistics()[0] , epoch)
+                #tb.add_scalar('ReLuStats/ReLu5/mean',self.model.relu5.get_statistics()[1] , epoch)
+                #systb.add_scalar('ReLuStats/ReLu5/var',self.model.relu5.get_statistics()[2] , epoch)
+                #tb.add_scalar('Number Correct', total_correct, epoch)
+                #tb.add_scalar('Accuracy', total_correct / len(train_set), epoch)
+                
+                #tb.add_histogram('conv.bias', self.model.conv.bias, epoch)
+                try:
+                    tb.add_histogram('conv.weight', self.model.conv.weight, epoch)
+                    tb.add_histogram(
+                        'conv.weight.grad'
+                        ,self.model.conv.weight.grad
+                        ,epoch)
+                except Exception as e:
+                    print(e)
+                try:
+                    tb.add_histogram('layer1/conv1.weight', self.model.layer1.conv1.weight, epoch)
+                    tb.add_histogram(
+                        'layer1/conv1.weight.grad'
+                        ,self.model.layer1.conv1.weight.grad
+                        ,epoch)
+                    tb.add_histogram('layer1/conv2.weight', self.model.layer1.conv2.weight, epoch)
+                    tb.add_histogram(
+                        'layer1/conv2.weight.grad'
+                        ,self.model.layer1.conv2.weight.grad
+                        ,epoch)
+                except Exception as e:
+                    print(e)
+                try:
+                    tb.add_histogram('layer2/conv1.weight', self.model.layer2.conv1.weight, epoch)
+                    tb.add_histogram(
+                        'layer2/conv1.weight.grad'
+                        ,self.model.layer2.conv1.weight.grad
+                        ,epoch)
+                    tb.add_histogram('layer2/conv2.weight', self.model.layer2.conv2.weight, epoch)
+                    tb.add_histogram(
+                        'layer2/conv2.weight.grad'
+                        ,self.model.layer2.conv2.weight.grad
+                        ,epoch)
+                except Exception as e:
+                    print(e)
+                try:
+                    tb.add_histogram('layer3/conv1.weight', self.model.layer3.conv1.weight, epoch)
+                    tb.add_histogram(
+                        'layer3/conv1.weight.grad'
+                        ,self.model.layer3.conv1.weight.grad
+                        ,epoch)
+                    tb.add_histogram('layer3/conv2.weight', self.model.layer3.conv2.weight, epoch)
+                    tb.add_histogram(
+                        'layer3/conv2.weight.grad'
+                        ,self.model.layer3.conv2.weight.grad
+                        ,epoch)
+                except Exception as e:
+                    print(e)
+                try:
+                    tb.add_histogram('fc1.weight', self.model.fc1.weight, epoch)
+                    tb.add_histogram(
+                        'fc1.weight.grad'
+                        ,self.model.fc1.weight.grad
+                        ,epoch)
+                    tb.add_histogram('fc2.weight', self.model.fc2.weight, epoch)
+                    tb.add_histogram(
+                        'fc2.weight.grad'
+                        ,self.model.fc2.weight.grad
+                        ,epoch)
+                except Exception as e:
+                    print(e)
+                try:
+                    tb.add_histogram('fc_x.weight', self.model.fc_x.weight, epoch)
+                    tb.add_histogram(
+                        'fc_x.weight.grad'
+                        ,self.model.fc_x.weight.grad
+                        ,epoch)
+                    tb.add_histogram('fc_y.weight', self.model.fc_y.weight, epoch)
+                    tb.add_histogram(
+                        'fc_y.weight.grad'
+                        ,self.model.fc_y.weight.grad
+                        ,epoch)
+                    tb.add_histogram('fc_z.weight', self.model.fc_z.weight, epoch)
+                    tb.add_histogram(
+                        'fc_z.weight.grad'
+                        ,self.model.fc_z.weight.grad
+                        ,epoch)
+                    tb.add_histogram('fc_phi.weight', self.model.fc_phi.weight, epoch)
+                    tb.add_histogram(
+                        'fc_phi.weight.grad'
+                        ,self.model.fc_phi.weight.grad
+                        ,epoch)
+                except Exception as e:
+                    print(e)
 
             logging.info('[ModelTrainer] Validation MSE: {}'.format(MSE))
             logging.info('[ModelTrainer] Validation MAE: {}'.format(MAE))
@@ -284,7 +402,9 @@ class ModelTrainer:
             if early_stopping.early_stop:
                 logging.info("[ModelTrainer] Early stopping")
                 break
-
+        if tb != None:
+            tb.close()
+        
         MSEs = metrics.GetMSE()
         MAEs = metrics.GetMAE()
         r_score = metrics.Getr2_score()
