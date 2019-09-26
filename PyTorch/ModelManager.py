@@ -20,7 +20,7 @@ class ModelManager:
             """
 
         state_dict = torch.load(filename, map_location='cpu')
-        model.load_state_dict(state_dict['model'])
+        model.load_state_dict(state_dict['model'], strict=False)
         epoch = state_dict['epoch']
 
         return epoch
