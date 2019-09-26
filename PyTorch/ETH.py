@@ -1,5 +1,6 @@
 from __future__ import print_function
 from PreActBlockSimple import PreActBlockSimple
+from PreActBlock import PreActBlock
 from FrontNet import FrontNet
 from Dronet import Dronet
 from FindNet import FindNet
@@ -11,12 +12,6 @@ from Dataset import Dataset
 from torch.utils import data
 from ModelManager import ModelManager
 import torch
-#only needed for tensorboard visualization
-try:
-    import torchvision
-    from torch.utils.tensorboard import SummaryWriter
-except:
-    pass
 import argparse
 import json
 
@@ -64,6 +59,8 @@ def Parse(parser):
                         help='for choosing the model')
     parser.add_argument('--tensorboard', default=None, type=int,
                         help='for enabling visualization during training')
+    parser.add_argument('--predictonly', default=None, type=int,
+                        help='for only predicting(need --load-model)')
     args = parser.parse_args()
 
     return args
@@ -151,17 +148,19 @@ def main():
     if args.quantize:
         trainer.Quantize(validation_loader)
 
-    images, labels = next(iter(train_loader))
-    grid = torchvision.utils.make_grid(images)
+    if args.predictonly is None:
+        if args.tensorboard is not None:
+            import torchvision
+            from torch.utils.tensorboard import SummaryWriter
+            images, labels = next(iter(train_loader))
+            grid = torchvision.utils.make_grid(images)
+            tb = SummaryWriter(comment="FindNetGray3232_3264_64128_quant8fromMaxPool2")#(comment="COBNRLMPL2BNRELUL2(64x64/2)BNRLL3APFCRLFCRL")
+            tb.add_image('images', grid)
+            #tb.add_graph(model, images)
 
-    if args.tensorboard is not None:
-        tb = SummaryWriter(comment="COBNRLMPL2BNRLL3APFCRLFCRL")
-        tb.add_image('images', grid)
-        #tb.add_graph(model, images)
-
-        trainer.Train(train_loader, validation_loader, tb)
-    else:
-        trainer.Train(train_loader, validation_loader)
+            trainer.Train(train_loader, validation_loader, tb)
+        else:
+            trainer.Train(train_loader, validation_loader)
     trainer.Predict(test_loader)
 
     if args.save_model is not None:
