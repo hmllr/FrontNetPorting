@@ -10,13 +10,14 @@ from ImageTransformer import ImageTransformer
 class Dataset(data.Dataset):
   'Characterizes a dataset for PyTorch'
 
-  def __init__(self, data, labels, train=False):
+  def __init__(self, data, labels, train=False, isClassifier=False):
         self.data = torch.from_numpy(data)
         self.labels = torch.from_numpy(labels)
         length = len(self.data)
         self.list_IDs = range(0, length)
         self.train = train
         self.it = ImageTransformer()
+        self.isClassifier = isClassifier
 
 
   def __len__(self):
@@ -67,8 +68,9 @@ class Dataset(data.Dataset):
         if self.train == True:
             if np.random.choice([True, False]):
                 X = torch.flip(X, [1])
-                y[1] = -y[1]  # Y
-                y[3] = -y[3]  # Relative YAW
+                if self.isClassifier == False:
+                  y[1] = -y[1]  # Y
+                  y[3] = -y[3]  # Relative YAW
 
             if X.shape[0] == 1:
                # if np.random.choice([True, False]):

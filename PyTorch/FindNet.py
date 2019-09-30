@@ -14,9 +14,10 @@ def conv1x1(in_planes, out_planes, stride=1):
 
 # FrontNet
 class FindNet(nn.Module):
-    def __init__(self, block, layers, isGray=False):
+    def __init__(self, block, layers, isGray=False, isClassifier=False):
         super(FindNet, self).__init__()
 
+        self.isClassifier = isClassifier
         if isGray ==True:
             self.name = "FindNetGray"
         else:
@@ -33,17 +34,17 @@ class FindNet(nn.Module):
             self.conv = nn.Conv2d(1, self.inplanes, kernel_size=5, stride=2, padding=2, bias=False)
         else:
             self.conv = nn.Conv2d(3, self.inplanes, kernel_size=5, stride=2, padding=2, bias=False)
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=5, stride=1, padding=2, bias=False)
-        self.bn32 = nn.BatchNorm2d(32)
+
+        self.bn32_1 = nn.BatchNorm2d(32)
+        self.bn32_2 = nn.BatchNorm2d(32)
         self.bn64 = nn.BatchNorm2d(64)
 
-        self.relu1 = PACT_Act(statistics_only=True)
-        self.relu = nn.ReLU(inplace=True)
-        #self.relu2 = PACT_Act(statistics_only=True)
-        #self.relu3 = PACT_Act(statistics_only=True)
-        #self.relu4 = PACT_Act(statistics_only=True)
-        #self.relu5 = PACT_Act(statistics_only=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.relu1 = nn.ReLU(inplace=True)
+        self.relu2 = nn.ReLU(inplace=True)
+        self.relu3 = nn.ReLU(inplace=True)
+        self.relu4 = nn.ReLU(inplace=True)
+        self.relu5 = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2, padding=1)
 
         self.layer1 = PreActBlockSimple(32, 32, stride=1)
         self.layer2 = PreActBlockSimple(32, 64, stride=2)
@@ -58,29 +59,35 @@ class FindNet(nn.Module):
         self.fc_z = nn.Linear(64, 1)
         self.fc_phi = nn.Linear(64, 1)
 
+        self.fc_class = nn.Linear(64, 1)
+        self.sig = nn.Sigmoid()
+
 
     def forward(self, x):
         out = self.conv(x)
-        out = self.bn32(out)
-        out = self.relu(out)
+        out = self.bn32_1(out)
+        out = self.relu1(out)
         out = self.maxpool(out)
-        #out = self.layer1(out)
-        #out = self.bn32(out)
-        #out = self.relu1(out)
+        out = self.layer1(out)
+        out = self.bn32_2(out)
+        out = self.relu2(out)
         out = self.layer2(out)
         out = self.bn64(out)
-        out = self.relu(out)
+        out = self.relu3(out)
         out = self.layer3(out)
         out = self.avg_pool(out)
         out = out.view(out.size(0), -1)
         out = self.fc1(out)
-        out = self.relu(out)
+        out = self.relu4(out)
         out = self.fc2(out)
-        out = self.relu(out)
+        out = self.relu5(out)
         x = self.fc_x(out)
         y = self.fc_y(out)
         z = self.fc_z(out)
         phi = self.fc_phi(out)
+        head = self.fc_class(out)
+        if self.isClassifier:
+            return self.sig(head)
 
         return [x, y, z, phi]
 

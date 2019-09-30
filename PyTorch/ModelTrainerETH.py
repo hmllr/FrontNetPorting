@@ -25,7 +25,8 @@ class ModelTrainer:
         self.model.to(self.device)
 
         # Loss and optimizer
-        self.criterion = nn.L1Loss()
+        #self.criterion = nn.L1Loss()
+        self.criterion = nn.BCELoss()
         if self.args.quantize:
             self.optimizer = torch.optim.Adam(model.parameters(), lr=float(regime['lr']), weight_decay=float(regime['weight_decay']))
         else:
@@ -174,29 +175,67 @@ class ModelTrainer:
             batch_samples = batch_samples.to(self.device)
             outputs = self.model(batch_samples)
 
-            loss_x = self.criterion(outputs[0], (batch_targets[:, 0]).view(-1, 1))
-            loss_y = self.criterion(outputs[1], (batch_targets[:, 1]).view(-1, 1))
-            loss_z = self.criterion(outputs[2], (batch_targets[:, 2]).view(-1, 1))
-            loss_phi = self.criterion(outputs[3], (batch_targets[:, 3]).view(-1, 1))
-            loss = loss_x + loss_y + loss_z + loss_phi
+            if self.model.isClassifier:
+                loss = self.criterion(outputs.reshape(-1), batch_targets.float().reshape(-1))
+            else:
+                loss_x = self.criterion(outputs[0], (batch_targets[:, 0]).view(-1, 1))
+                loss_y = self.criterion(outputs[1], (batch_targets[:, 1]).view(-1, 1))
+                loss_z = self.criterion(outputs[2], (batch_targets[:, 2]).view(-1, 1))
+                loss_phi = self.criterion(outputs[3], (batch_targets[:, 3]).view(-1, 1))
+                loss = loss_x + loss_y + loss_z + loss_phi
 
             # Backward and optimize
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-            train_loss_x.update(loss_x)
-            train_loss_y.update(loss_y)
-            train_loss_z.update(loss_z)
-            train_loss_phi.update(loss_phi)
-            #self.train_losses_log.append(loss_x)
+            if self.model.isClassifier == False:
+                train_loss_x.update(loss_x)
+                train_loss_y.update(loss_y)
+                train_loss_z.update(loss_z)
+                train_loss_phi.update(loss_phi)
+                #self.train_losses_log.append(loss_x)
 
-            if (i + 1) % 100 == 0:
-                logging.info("[ModelTrainer] Step [{}]: Average train loss {}, {}, {}, {}".format(i+1, train_loss_x.value, train_loss_y.value, train_loss_z.value,
-                                                           train_loss_phi.value))
-            i += 1
+                if (i + 1) % 100 == 0:
+                    logging.info("[ModelTrainer] Step [{}]: Average train loss {}, {}, {}, {}".format(i+1, train_loss_x.value, train_loss_y.value, train_loss_z.value,
+                                                               train_loss_phi.value))
+                    i += 1
+            
+            else:
+                if (i + 1) % 100 == 0:
+                    logging.info("[ModelTrainer] Step [{}]: Average train loss {}".format(i+1, loss))
 
-        return train_loss_x.value, train_loss_y.value, train_loss_z.value, train_loss_phi.value
+                i += 1
+        if self.model.isClassifier:
+            return loss
+        else:
+            return train_loss_x.value, train_loss_y.value, train_loss_z.value, train_loss_phi.value
 
+
+    def printConfusionMatrix(self):
+        print("TP:" + str(self.TP))
+        print("FP:" + str(self.FP))
+        print("TN:" + str(self.TN))
+        print("FN:" + str(self.FN))
+        
+    def updateConfusionMatrix(self, predictions, gt):
+        count = 0
+        for pred in predictions:
+            if pred > 0.5:
+                if gt[count] > 0.5:
+                    self.TP += 1
+                else: 
+                    self.FP += 1
+            else:
+                if gt[count] > 0.5:
+                    self.FN += 1
+                else:
+                    self.TN += 1
+            count += 1
+    def initConfusionMatrix(self):
+        self.TP = 0
+        self.FP = 0
+        self.TN = 0
+        self.FN = 0
 
     def ValidateSingleEpoch(self, validation_generator):
 
@@ -209,6 +248,7 @@ class ModelTrainer:
 
         y_pred = []
         gt_labels = []
+        self.initConfusionMatrix()
         with torch.no_grad():
             for batch_samples, batch_targets in validation_generator:
                 gt_labels.extend(batch_targets.cpu().numpy())
@@ -216,30 +256,37 @@ class ModelTrainer:
                 batch_samples = batch_samples.to(self.device)
                 outputs = self.model(batch_samples)
 
-                loss_x = self.criterion(outputs[0], (batch_targets[:, 0]).view(-1, 1))
-                loss_y = self.criterion(outputs[1], (batch_targets[:, 1]).view(-1, 1))
-                loss_z = self.criterion(outputs[2], (batch_targets[:, 2]).view(-1, 1))
-                loss_phi = self.criterion(outputs[3], (batch_targets[:, 3]).view(-1, 1))
-                loss = loss_x + loss_y + loss_z + loss_phi
+                if self.model.isClassifier:
+                    loss = self.criterion(outputs.reshape(-1), batch_targets.float().reshape(-1))
+                    self.updateConfusionMatrix(outputs.reshape(-1), batch_targets.float().reshape(-1))
+                else:
+                    loss_x = self.criterion(outputs[0], (batch_targets[:, 0]).view(-1, 1))
+                    loss_y = self.criterion(outputs[1], (batch_targets[:, 1]).view(-1, 1))
+                    loss_z = self.criterion(outputs[2], (batch_targets[:, 2]).view(-1, 1))
+                    loss_phi = self.criterion(outputs[3], (batch_targets[:, 3]).view(-1, 1))
+                    loss = loss_x + loss_y + loss_z + loss_phi
 
-                valid_loss.update(loss)
-                valid_loss_x.update(loss_x)
-                valid_loss_y.update(loss_y)
-                valid_loss_z.update(loss_z)
-                valid_loss_phi.update(loss_phi)
-                #self.val_losses_log.append(loss_x)
+                    valid_loss.update(loss)
+                    valid_loss_x.update(loss_x)
+                    valid_loss_y.update(loss_y)
+                    valid_loss_z.update(loss_z)
+                    valid_loss_phi.update(loss_phi)
+                    #self.val_losses_log.append(loss_x)
 
-                outputs = torch.stack(outputs, 0)
-                outputs = torch.squeeze(outputs)
-                outputs = torch.t(outputs)
+                    outputs = torch.stack(outputs, 0)
+                    outputs = torch.squeeze(outputs)
+                    outputs = torch.t(outputs)
                 y_pred.extend(outputs.cpu().numpy())
 
-            logging.info("[ModelTrainer] Average validation loss {}, {}, {}, {}".format(valid_loss_x.value, valid_loss_y.value,
-                                                                  valid_loss_z.value,
-                                                                  valid_loss_phi.value))
-
-
-        return valid_loss_x.value, valid_loss_y.value, valid_loss_z.value, valid_loss_phi.value, y_pred, gt_labels
+            if self.model.isClassifier == False:
+                logging.info("[ModelTrainer] Average validation loss {}, {}, {}, {}".format(valid_loss_x.value, valid_loss_y.value,
+                                                                      valid_loss_z.value,
+                                                                      valid_loss_phi.value))
+                return valid_loss_x.value, valid_loss_y.value, valid_loss_z.value, valid_loss_phi.value, y_pred, gt_labels
+            else:
+                self.printConfusionMatrix()
+                logging.info("[ModelTrainer] Average validation loss {}".format(loss))
+                return loss, y_pred, gt_labels
 
     def Train(self, training_generator, validation_generator, tb=None):
 
@@ -261,167 +308,65 @@ class ModelTrainer:
             # if ended:
             #     break
 
-            train_loss_x, train_loss_y, train_loss_z, train_loss_phi = self.TrainSingleEpoch(training_generator)
+            if self.model.isClassifier == False:
 
-            valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
-                validation_generator)
+                train_loss_x, train_loss_y, train_loss_z, train_loss_phi = self.TrainSingleEpoch(training_generator)
 
-            valid_loss = valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi
-            scheduler.step(valid_loss)
+                valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
+                    validation_generator)
 
-            gt_labels = torch.tensor(gt_labels, dtype=torch.float32)
-            y_pred = torch.tensor(y_pred, dtype=torch.float32)
-            MSE, MAE, r_score = metrics.Update(y_pred, gt_labels,
-                                               [train_loss_x, train_loss_y, train_loss_z, train_loss_phi],
-                                               [valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi])
-            train_total_loss = train_loss_x + train_loss_y + train_loss_z + train_loss_phi
-            valid_total_loss = valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi
-            if tb != None:
-                try:
-                    tb.add_scalar('Lossx/train', train_loss_x, epoch)
-                    tb.add_scalar('Lossy/train', train_loss_y, epoch)
-                    tb.add_scalar('Lossz/train', train_loss_y, epoch)
-                    tb.add_scalar('Lossphi/train', train_loss_phi, epoch)
-                    tb.add_scalar('TotalLoss/train', train_total_loss, epoch)
-                    tb.add_scalar('Lossx/valid', valid_loss_x, epoch)
-                    tb.add_scalar('Lossy/valid', valid_loss_y, epoch)
-                    tb.add_scalar('Lossz/valid', valid_loss_y, epoch)
-                    tb.add_scalar('Lossphi/valid', valid_loss_phi, epoch)
-                    tb.add_scalar('TotalLoss/valid', valid_total_loss, epoch)
-                except Exception as e:
-                    print(e)
-                #tb.add_scalar('ReLuStats/ReLu1/max',self.model.relu1.get_statistics()[0] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu1/mean',self.model.relu1.get_statistics()[1] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu1/var',self.model.relu1.get_statistics()[2] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu2/max',self.model.relu2.get_statistics()[0] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu2/mean',self.model.relu2.get_statistics()[1] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu2/var',self.model.relu2.get_statistics()[2] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu3/max',self.model.relu3.get_statistics()[0] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu3/mean',self.model.relu3.get_statistics()[1] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu3/var',self.model.relu3.get_statistics()[2] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu4/max',self.model.relu4.get_statistics()[0] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu4/mean',self.model.relu4.get_statistics()[1] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu4/var',self.model.relu4.get_statistics()[2] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu5/max',self.model.relu5.get_statistics()[0] , epoch)
-                #tb.add_scalar('ReLuStats/ReLu5/mean',self.model.relu5.get_statistics()[1] , epoch)
-                #systb.add_scalar('ReLuStats/ReLu5/var',self.model.relu5.get_statistics()[2] , epoch)
-                #tb.add_scalar('Number Correct', total_correct, epoch)
-                #tb.add_scalar('Accuracy', total_correct / len(train_set), epoch)
-                
-                #tb.add_histogram('conv.bias', self.model.conv.bias, epoch)
-                try:
-                    tb.add_histogram('conv.weight', self.model.conv.weight, epoch)
-                    tb.add_histogram(
-                        'conv.weight.grad'
-                        ,self.model.conv.weight.grad
-                        ,epoch)
-                except Exception as e:
-                    print(e)
-                try:
-                    tb.add_histogram('layer1/conv1.weight', self.model.layer1.conv1.weight, epoch)
-                    tb.add_histogram(
-                        'layer1/conv1.weight.grad'
-                        ,self.model.layer1.conv1.weight.grad
-                        ,epoch)
-                    tb.add_histogram('layer1/conv2.weight', self.model.layer1.conv2.weight, epoch)
-                    tb.add_histogram(
-                        'layer1/conv2.weight.grad'
-                        ,self.model.layer1.conv2.weight.grad
-                        ,epoch)
-                except Exception as e:
-                    print(e)
-                try:
-                    tb.add_histogram('layer2/conv1.weight', self.model.layer2.conv1.weight, epoch)
-                    tb.add_histogram(
-                        'layer2/conv1.weight.grad'
-                        ,self.model.layer2.conv1.weight.grad
-                        ,epoch)
-                    tb.add_histogram('layer2/conv2.weight', self.model.layer2.conv2.weight, epoch)
-                    tb.add_histogram(
-                        'layer2/conv2.weight.grad'
-                        ,self.model.layer2.conv2.weight.grad
-                        ,epoch)
-                except Exception as e:
-                    print(e)
-                try:
-                    tb.add_histogram('layer3/conv1.weight', self.model.layer3.conv1.weight, epoch)
-                    tb.add_histogram(
-                        'layer3/conv1.weight.grad'
-                        ,self.model.layer3.conv1.weight.grad
-                        ,epoch)
-                    tb.add_histogram('layer3/conv2.weight', self.model.layer3.conv2.weight, epoch)
-                    tb.add_histogram(
-                        'layer3/conv2.weight.grad'
-                        ,self.model.layer3.conv2.weight.grad
-                        ,epoch)
-                except Exception as e:
-                    print(e)
-                try:
-                    tb.add_histogram('fc1.weight', self.model.fc1.weight, epoch)
-                    tb.add_histogram(
-                        'fc1.weight.grad'
-                        ,self.model.fc1.weight.grad
-                        ,epoch)
-                    tb.add_histogram('fc2.weight', self.model.fc2.weight, epoch)
-                    tb.add_histogram(
-                        'fc2.weight.grad'
-                        ,self.model.fc2.weight.grad
-                        ,epoch)
-                except Exception as e:
-                    print(e)
-                try:
-                    tb.add_histogram('fc_x.weight', self.model.fc_x.weight, epoch)
-                    tb.add_histogram(
-                        'fc_x.weight.grad'
-                        ,self.model.fc_x.weight.grad
-                        ,epoch)
-                    tb.add_histogram('fc_y.weight', self.model.fc_y.weight, epoch)
-                    tb.add_histogram(
-                        'fc_y.weight.grad'
-                        ,self.model.fc_y.weight.grad
-                        ,epoch)
-                    tb.add_histogram('fc_z.weight', self.model.fc_z.weight, epoch)
-                    tb.add_histogram(
-                        'fc_z.weight.grad'
-                        ,self.model.fc_z.weight.grad
-                        ,epoch)
-                    tb.add_histogram('fc_phi.weight', self.model.fc_phi.weight, epoch)
-                    tb.add_histogram(
-                        'fc_phi.weight.grad'
-                        ,self.model.fc_phi.weight.grad
-                        ,epoch)
-                except Exception as e:
-                    print(e)
+                valid_loss = valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi
+                scheduler.step(valid_loss)
 
-            logging.info('[ModelTrainer] Validation MSE: {}'.format(MSE))
-            logging.info('[ModelTrainer] Validation MAE: {}'.format(MAE))
-            logging.info('[ModelTrainer] Validation r_score: {}'.format(r_score))
+                gt_labels = torch.tensor(gt_labels, dtype=torch.float32)
+                y_pred = torch.tensor(y_pred, dtype=torch.float32)
+                MSE, MAE, r_score = metrics.Update(y_pred, gt_labels,
+                                                   [train_loss_x, train_loss_y, train_loss_z, train_loss_phi],
+                                                   [valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi])
+                train_total_loss = train_loss_x + train_loss_y + train_loss_z + train_loss_phi
+                valid_total_loss = valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi
+                if tb != None:
+                    AddLosssesTB(self, tb, epoch, train_loss_x, train_loss_y, train_loss_z, train_total_loss, valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, valid_total_loss)
+
+                logging.info('[ModelTrainer] Validation MSE: {}'.format(MSE))
+                logging.info('[ModelTrainer] Validation MAE: {}'.format(MAE))
+                logging.info('[ModelTrainer] Validation r_score: {}'.format(r_score))
+            else:
+                train_total_loss = self.TrainSingleEpoch(training_generator)
+                valid_total_loss, y_pred, gt_labels = self.ValidateSingleEpoch(validation_generator)
+                if tb != None:
+                    try:
+                        tb.add_scalar('TotalLoss/train', train_total_loss, epoch)
+                        tb.add_scalar('TotalLoss/valid', valid_total_loss, epoch)
+                    except Exception as e:
+                        print(e)
+
 
             checkpoint_filename = self.folderPath + self.model.name + '-{:03d}.pt'.format(epoch)
-            early_stopping(valid_loss, self.model, epoch, checkpoint_filename)
+            early_stopping(valid_total_loss, self.model, epoch, checkpoint_filename)
             if early_stopping.early_stop:
                 logging.info("[ModelTrainer] Early stopping")
                 break
         if tb != None:
             tb.close()
-        
-        MSEs = metrics.GetMSE()
-        MAEs = metrics.GetMAE()
-        r_score = metrics.Getr2_score()
-        y_pred_viz = metrics.GetPred()
-        gt_labels_viz = metrics.GetLabels()
-        train_losses_x, train_losses_y, train_losses_z, train_losses_phi, valid_losses_x, valid_losses_y, valid_losses_z, valid_losses_phi = metrics.GetLosses()
+        if self.model.isClassifier == False:        
+            MSEs = metrics.GetMSE()
+            MAEs = metrics.GetMAE()
+            r_score = metrics.Getr2_score()
+            y_pred_viz = metrics.GetPred()
+            gt_labels_viz = metrics.GetLabels()
+            train_losses_x, train_losses_y, train_losses_z, train_losses_phi, valid_losses_x, valid_losses_y, valid_losses_z, valid_losses_phi = metrics.GetLosses()
 
-        DataVisualization.desc = "Train_"
-        DataVisualization.PlotLoss(train_losses_x, train_losses_y, train_losses_z, train_losses_phi , valid_losses_x, valid_losses_y, valid_losses_z, valid_losses_phi)
-        DataVisualization.PlotMSE(MSEs)
-        DataVisualization.PlotMAE(MAEs)
-        DataVisualization.PlotR2Score(r_score)
+            DataVisualization.desc = "Train_"
+            DataVisualization.PlotLoss(train_losses_x, train_losses_y, train_losses_z, train_losses_phi , valid_losses_x, valid_losses_y, valid_losses_z, valid_losses_phi)
+            DataVisualization.PlotMSE(MSEs)
+            DataVisualization.PlotMAE(MAEs)
+            DataVisualization.PlotR2Score(r_score)
 
-        DataVisualization.PlotGTandEstimationVsTime(gt_labels_viz, y_pred_viz)
-        DataVisualization.PlotGTVsEstimation(gt_labels_viz, y_pred_viz)
-        #DataVisualization.PlotLossTest(self.train_losses_log, self.val_losses_log) #to display single and not averaged training/validation losses, uncomment there as well. Think about enough RAM
-        DataVisualization.DisplayPlots()
+            DataVisualization.PlotGTandEstimationVsTime(gt_labels_viz, y_pred_viz)
+            DataVisualization.PlotGTVsEstimation(gt_labels_viz, y_pred_viz)
+            #DataVisualization.PlotLossTest(self.train_losses_log, self.val_losses_log) #to display single and not averaged training/validation losses, uncomment there as well. Think about enough RAM
+            DataVisualization.DisplayPlots()
 
     def PerdictSingleSample(self, test_generator):
 
@@ -470,26 +415,29 @@ class ModelTrainer:
     def Predict(self, test_generator):
 
         metrics = Metrics()
+        if self.model.isClassifier == False:
+            valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
+                test_generator)
 
-        valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
-            test_generator)
+            gt_labels = torch.tensor(gt_labels, dtype=torch.float32)
+            y_pred = torch.tensor(y_pred, dtype=torch.float32)
+            MSE, MAE, r_score = metrics.Update(y_pred, gt_labels,
+                                               [0, 0, 0, 0],
+                                               [valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi])
 
-        gt_labels = torch.tensor(gt_labels, dtype=torch.float32)
-        y_pred = torch.tensor(y_pred, dtype=torch.float32)
-        MSE, MAE, r_score = metrics.Update(y_pred, gt_labels,
-                                           [0, 0, 0, 0],
-                                           [valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi])
+            y_pred_viz = metrics.GetPred()
+            gt_labels_viz = metrics.GetLabels()
 
-        y_pred_viz = metrics.GetPred()
-        gt_labels_viz = metrics.GetLabels()
-
-        DataVisualization.desc = "Test_"
-        DataVisualization.PlotGTandEstimationVsTime(gt_labels_viz, y_pred_viz)
-        DataVisualization.PlotGTVsEstimation(gt_labels_viz, y_pred_viz)
-        DataVisualization.DisplayPlots()
-        logging.info('[ModelTrainer] Test MSE: {}'.format(MSE))
-        logging.info('[ModelTrainer] Test MAE: {}'.format(MAE))
-        logging.info('[ModelTrainer] Test r_score: {}'.format(r_score))
+            DataVisualization.desc = "Test_"
+            DataVisualization.PlotGTandEstimationVsTime(gt_labels_viz, y_pred_viz)
+            DataVisualization.PlotGTVsEstimation(gt_labels_viz, y_pred_viz)
+            DataVisualization.DisplayPlots()
+            logging.info('[ModelTrainer] Test MSE: {}'.format(MSE))
+            logging.info('[ModelTrainer] Test MAE: {}'.format(MAE))
+            logging.info('[ModelTrainer] Test r_score: {}'.format(r_score))
+        else:
+            valid_loss, y_pred, gt_labels  = self.ValidateSingleEpoch(test_generator)
+            logging.info('[ModelTrainer] Test loss: {}'.format(valid_loss))
 
     def Infer(self, live_generator):
 
@@ -498,3 +446,130 @@ class ModelTrainer:
 
         return y_pred
 
+    def AddLosssesTB(self, tb, epoch, train_loss_x, train_loss_y, train_loss_z, train_total_loss, valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, valid_total_loss):
+        try:
+            tb.add_scalar('Lossx/train', train_loss_x, epoch)
+            tb.add_scalar('Lossy/train', train_loss_y, epoch)
+            tb.add_scalar('Lossz/train', train_loss_z, epoch)
+            tb.add_scalar('Lossphi/train', train_loss_phi, epoch)
+            tb.add_scalar('TotalLoss/train', train_total_loss, epoch)
+            tb.add_scalar('Lossx/valid', valid_loss_x, epoch)
+            tb.add_scalar('Lossy/valid', valid_loss_y, epoch)
+            tb.add_scalar('Lossz/valid', valid_loss_z, epoch)
+            tb.add_scalar('Lossphi/valid', valid_loss_phi, epoch)
+            tb.add_scalar('TotalLoss/valid', valid_total_loss, epoch)
+        except Exception as e:
+            print(e)
+        '''
+        tb.add_scalar('ReLuStats/ReLu1/max',self.model.relu1.get_statistics()[0] , epoch)
+        tb.add_scalar('ReLuStats/ReLu1/mean',self.model.relu1.get_statistics()[1] , epoch)
+        tb.add_scalar('ReLuStats/ReLu1/var',self.model.relu1.get_statistics()[2] , epoch)
+        tb.add_scalar('ReLuStats/ReLu2/max',self.model.relu2.get_statistics()[0] , epoch)
+        tb.add_scalar('ReLuStats/ReLu2/mean',self.model.relu2.get_statistics()[1] , epoch)
+        tb.add_scalar('ReLuStats/ReLu2/var',self.model.relu2.get_statistics()[2] , epoch)
+        tb.add_scalar('ReLuStats/ReLu3/max',self.model.relu3.get_statistics()[0] , epoch)
+        tb.add_scalar('ReLuStats/ReLu3/mean',self.model.relu3.get_statistics()[1] , epoch)
+        tb.add_scalar('ReLuStats/ReLu3/var',self.model.relu3.get_statistics()[2] , epoch)
+        tb.add_scalar('ReLuStats/ReLu4/max',self.model.relu4.get_statistics()[0] , epoch)
+        tb.add_scalar('ReLuStats/ReLu4/mean',self.model.relu4.get_statistics()[1] , epoch)
+        tb.add_scalar('ReLuStats/ReLu4/var',self.model.relu4.get_statistics()[2] , epoch)
+        tb.add_scalar('ReLuStats/ReLu5/max',self.model.relu5.get_statistics()[0] , epoch)
+        tb.add_scalar('ReLuStats/ReLu5/mean',self.model.relu5.get_statistics()[1] , epoch)
+        tb.add_scalar('ReLuStats/ReLu5/var',self.model.relu5.get_statistics()[2] , epoch)
+        tb.add_scalar('ReLuStats/ReLuLayer1/max',self.model.layer1.relu2.get_statistics()[0] , epoch)
+        tb.add_scalar('ReLuStats/ReLuLayer1/mean',self.model.layer1.relu2.get_statistics()[1] , epoch)
+        tb.add_scalar('ReLuStats/ReLuLayer1/var',self.model.layer1.relu2.get_statistics()[2] , epoch)
+        tb.add_scalar('ReLuStats/ReLuLayer2/max',self.model.layer2.relu2.get_statistics()[0] , epoch)
+        tb.add_scalar('ReLuStats/ReLuLayer2/mean',self.model.layer2.relu2.get_statistics()[1] , epoch)
+        tb.add_scalar('ReLuStats/ReLuLayer2/var',self.model.layer2.relu2.get_statistics()[2] , epoch)
+        tb.add_scalar('ReLuStats/ReLuLayer3/max',self.model.layer3.relu2.get_statistics()[0] , epoch)
+        tb.add_scalar('ReLuStats/ReLuLayer3/mean',self.model.layer3.relu2.get_statistics()[1] , epoch)
+        tb.add_scalar('ReLuStats/ReLuLayer3/var',self.model.layer3.relu2.get_statistics()[2] , epoch)
+        '''
+        #tb.add_scalar('Number Correct', total_correct, epoch)
+        #tb.add_scalar('Accuracy', total_correct / len(train_set), epoch)
+        
+        #tb.add_histogram('conv.bias', self.model.conv.bias, epoch)
+        try:
+            tb.add_histogram('conv.weight', self.model.conv.weight, epoch)
+            tb.add_histogram(
+                'conv.weight.grad'
+                ,self.model.conv.weight.grad
+                ,epoch)
+        except Exception as e:
+            print(e)
+        try:
+            tb.add_histogram('layer1/conv1.weight', self.model.layer1.conv1.weight, epoch)
+            tb.add_histogram(
+                'layer1/conv1.weight.grad'
+                ,self.model.layer1.conv1.weight.grad
+                ,epoch)
+            tb.add_histogram('layer1/conv2.weight', self.model.layer1.conv2.weight, epoch)
+            tb.add_histogram(
+                'layer1/conv2.weight.grad'
+                ,self.model.layer1.conv2.weight.grad
+                ,epoch)
+        except Exception as e:
+            print(e)
+        try:
+            tb.add_histogram('layer2/conv1.weight', self.model.layer2.conv1.weight, epoch)
+            tb.add_histogram(
+                'layer2/conv1.weight.grad'
+                ,self.model.layer2.conv1.weight.grad
+                ,epoch)
+            tb.add_histogram('layer2/conv2.weight', self.model.layer2.conv2.weight, epoch)
+            tb.add_histogram(
+                'layer2/conv2.weight.grad'
+                ,self.model.layer2.conv2.weight.grad
+                ,epoch)
+        except Exception as e:
+            print(e)
+        try:
+            tb.add_histogram('layer3/conv1.weight', self.model.layer3.conv1.weight, epoch)
+            tb.add_histogram(
+                'layer3/conv1.weight.grad'
+                ,self.model.layer3.conv1.weight.grad
+                ,epoch)
+            tb.add_histogram('layer3/conv2.weight', self.model.layer3.conv2.weight, epoch)
+            tb.add_histogram(
+                'layer3/conv2.weight.grad'
+                ,self.model.layer3.conv2.weight.grad
+                ,epoch)
+        except Exception as e:
+            print(e)
+        try:
+            tb.add_histogram('fc1.weight', self.model.fc1.weight, epoch)
+            tb.add_histogram(
+                'fc1.weight.grad'
+                ,self.model.fc1.weight.grad
+                ,epoch)
+            tb.add_histogram('fc2.weight', self.model.fc2.weight, epoch)
+            tb.add_histogram(
+                'fc2.weight.grad'
+                ,self.model.fc2.weight.grad
+                ,epoch)
+        except Exception as e:
+            print(e)
+        try:
+            tb.add_histogram('fc_x.weight', self.model.fc_x.weight, epoch)
+            tb.add_histogram(
+                'fc_x.weight.grad'
+                ,self.model.fc_x.weight.grad
+                ,epoch)
+            tb.add_histogram('fc_y.weight', self.model.fc_y.weight, epoch)
+            tb.add_histogram(
+                'fc_y.weight.grad'
+                ,self.model.fc_y.weight.grad
+                ,epoch)
+            tb.add_histogram('fc_z.weight', self.model.fc_z.weight, epoch)
+            tb.add_histogram(
+                'fc_z.weight.grad'
+                ,self.model.fc_z.weight.grad
+                ,epoch)
+            tb.add_histogram('fc_phi.weight', self.model.fc_phi.weight, epoch)
+            tb.add_histogram(
+                'fc_phi.weight.grad'
+                ,self.model.fc_phi.weight.grad
+                ,epoch)
+        except Exception as e:
+            print(e)
