@@ -75,7 +75,7 @@ class ModelTrainer:
 
         # first block folding
 
-        self.model.fold_bn_withinv(bn_dict={
+        '''self.model.fold_bn_withinv(bn_dict={
             "conv": "layer1.bn1",
             "layer1.conv1": "layer1.bn2",
         },
@@ -105,7 +105,7 @@ class ModelTrainer:
         valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
             validation_loader)
         acc = float(1) / (valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi)
-        print("[ModelTrainer]: After BN folding: %f" % acc)
+        print("[ModelTrainer]: After BN folding: %f" % acc)'''
 
 
         self.model.set_statistics_act()
@@ -119,10 +119,10 @@ class ModelTrainer:
         precision_rule = self.regime['relaxation']
 
         # [NeMO] Change precision and reset weight clipping parameters
-        self.model.change_precision(bits=16)
+        self.model.change_precision(bits=8)
         self.model.reset_alpha_weights()
         # [NeMO] Export legacy-style INT-16 weights. Clipping parameters are changed!
-        self.model.export_weights_legacy_int16()
+        self.model.export_weights_legacy_int8()
         # [NeMO] Re-check validation accuracy
         valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
             validation_loader)
