@@ -83,6 +83,8 @@ class DataProcessor:
             for root, dirs, files in os.walk(picsPath):
                 for file in files:
                     if file.endswith('.csv'):
+                        pass
+                        ''' Not used at the moment as shift in images and fixed are stored as pgm
                         X = np.genfromtxt(root +'/' + file, delimiter=',')
                         X = np.reshape(X, (244, 324))
                         #cv2.imshow('train' + str(size),X.astype("uint8"))
@@ -96,7 +98,7 @@ class DataProcessor:
                         #X = np.swapaxes(X, 1, 3)
                         #X = np.swapaxes(X, 2, 3)
                         x_train.append(X)
-                        size+=1
+                        size+=1'''
                     if file.endswith('.pgm'):
                         X = cv2.imread(root +'/'+ file, 0)
                         #cv2.imshow('train' + str(size),X.astype("uint8"))
@@ -193,6 +195,8 @@ class DataProcessor:
             for root, dirs, files in os.walk(picsPath):
                 for file in files:
                     if file.endswith('.csv'):
+                        pass
+                        ''' Not used at the moment as shift in images and fixed are stored as pgm
                         X = np.genfromtxt(picsPath + file, delimiter=',')
                         X = np.reshape(X, (244, 324))
                         #cv2.imshow('test' + str(size),X.astype("uint8"))
@@ -203,7 +207,7 @@ class DataProcessor:
                         #cv2.imshow('test' + str(size),X)
                         #cv2.waitKey(0)
                         x_test.append(X)
-                        size+=1
+                        size+=1'''
                     if file.endswith('.pgm'):
                         X = cv2.imread(picsPath + file, 0)
                         X = np.reshape(X, (244, 324))
