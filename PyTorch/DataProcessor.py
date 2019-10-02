@@ -18,7 +18,7 @@ from ImageTransformer import ImageTransformer
 class DataProcessor:
 
     @staticmethod
-    def ProcessTrainData(trainPath, image_height, image_width, isGray = False, isExtended=False, isClassifier=False, fromPics=False, picsPath=None):
+    def ProcessTrainData(trainPath, image_height, image_width, isGray = False, isExtended=False, isClassifier=False, fromPics=False, picsPath=None, isCombined=False):
         """Reads the .pickle file and converts it into a format suitable fot training
 
             Parameters
@@ -42,7 +42,7 @@ class DataProcessor:
             """
         if fromPics == False:
             train_set = pd.read_pickle(trainPath).values
-            train_set = train_set[0:500]
+            #train_set = train_set[0:10000]
 
             logging.info('[DataProcessor] train shape: ' + str(train_set.shape))
             size = len(train_set[:, 0])
@@ -133,7 +133,16 @@ class DataProcessor:
             #sel_idx = random.sample(range(0, shape_), k=50000)
             x_train = x_train[sel_idx, :]
 
-        if isClassifier == True:
+        if isCombined:
+            if fromPics == True:
+                # all zeros as no head
+                y_train = np.concatenate((np.array((50,0,0,0))*np.ones((len(x_train),4)),np.reshape(np.zeros(len(x_train)),(len(x_train),-1))), axis=1).astype(np.float32)
+                y_validation = np.concatenate((np.array((50,0,0,0))*np.ones((len(x_validation),4)),np.reshape(np.zeros(len(x_validation)),(len(x_validation),-1))), axis=1).astype(np.float32)
+            else:
+                # concat ones at the end, for classifier results
+                y_train = np.concatenate((y_train,np.reshape(np.ones(len(x_train)),(len(x_train),-1))), axis=1).astype(np.float32)
+                y_validation = np.concatenate((y_validation,np.reshape(np.ones(len(x_validation)),(len(x_validation),-1))), axis=1).astype(np.float32)
+        elif isClassifier == True:
             if fromPics == True:
                 y_train = np.zeros(len(x_train))
                 y_validation = np.zeros(len(x_validation))
@@ -152,7 +161,7 @@ class DataProcessor:
         return [np.asarray(x_train), x_validation, y_train, y_validation]
 
     @staticmethod
-    def ProcessTestData(testPath, image_height, image_width, isGray = False, isExtended=False, isClassifier=False, fromPics=False, picsPath=None):
+    def ProcessTestData(testPath, image_height, image_width, isGray = False, isExtended=False, isClassifier=False, fromPics=False, picsPath=None, isCombined=False):
         """Reads the .pickle file and converts it into a format suitable fot testing
 
             Parameters
@@ -209,7 +218,7 @@ class DataProcessor:
                         x_test.append(X)
                         size+=1'''
                     if file.endswith('.pgm'):
-                        X = cv2.imread(picsPath + file, 0)
+                        X = cv2.imread(root +'/'+ file, 0)
                         X = np.reshape(X, (244, 324))
                         #cv2.imshow('test' + str(size),X.astype("uint8"))
                         #cv2.waitKey(0)
@@ -230,7 +239,14 @@ class DataProcessor:
             z_test = test_set[:, 2]
             z_test = np.vstack(z_test[:]).astype(np.float32)
             return [x_test, y_test, z_test]
-        if isClassifier == True:
+        if isCombined:
+            # put ones/zeros for classifier result to end of pose gt (if no head, no pose)
+            if fromPics == True:
+                #y_test = np.zeros((len(x_test),5)).astype(np.float32)
+                y_test = np.concatenate((np.array((50,0,0,0))*np.ones((len(x_test),4)),np.reshape(np.zeros(len(x_test)),(len(x_test),-1))), axis=1).astype(np.float32)
+            else:
+                y_test = np.concatenate((y_test,np.reshape(np.ones(len(x_test)),(len(x_test),-1))), axis=1).astype(np.float32)
+        elif isClassifier == True:
             if fromPics == True:
                 y_test = np.zeros(len(x_test))
             else:

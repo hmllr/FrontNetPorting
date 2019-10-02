@@ -167,13 +167,13 @@ class DataVisualization:
         DataVisualization.figure_counter += 1
         plt.figure(DataVisualization.figure_counter, figsize=(20, 12))
         plt.margins(0.1)
-
+        n_gt_outputs = 5
         gt_labels = torch.stack(gt_labels, 0)
         predictions = torch.stack(predictions, 0)
         gt_labels = gt_labels.cpu().numpy()
-        gt_labels = np.reshape(gt_labels, (-1, 4))
+        gt_labels = np.reshape(gt_labels, (-1, n_gt_outputs))
         predictions = predictions.cpu().numpy()
-        predictions = np.reshape(predictions, (-1, 4))
+        predictions = np.reshape(predictions, (-1, n_gt_outputs))
         samples = len(gt_labels[:, 0])
         samples = range(1, samples+1)
 
@@ -276,13 +276,13 @@ class DataVisualization:
     def PlotGTVsEstimation(gt_labels, predictions):
         DataVisualization.figure_counter += 1
         plt.figure(DataVisualization.figure_counter, figsize=(20, 12))
-
+        n_gt_outputs = 5
         gt_labels = torch.stack(gt_labels, 0)
         predictions = torch.stack(predictions, 0)
         gt_labels = gt_labels.cpu().numpy()
-        gt_labels = np.reshape(gt_labels, (-1, 4))
+        gt_labels = np.reshape(gt_labels, (-1, n_gt_outputs))
         predictions = predictions.cpu().numpy()
-        predictions = np.reshape(predictions, (-1, 4))
+        predictions = np.reshape(predictions, (-1, n_gt_outputs))
 
         gs = gridspec.GridSpec(2, 2)
         ax = plt.subplot(gs[0, 0])

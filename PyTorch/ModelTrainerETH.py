@@ -25,14 +25,15 @@ class ModelTrainer:
         self.model.to(self.device)
 
         # Loss and optimizer
-        #self.criterion = nn.L1Loss()
-        self.criterion = nn.BCELoss()
+        self.criterion = nn.L1Loss()
+        self.criterion_class = nn.BCELoss()
         if self.args.quantize:
             self.optimizer = torch.optim.Adam(model.parameters(), lr=float(regime['lr']), weight_decay=float(regime['weight_decay']))
         else:
             self.optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
         self.relax = None
         self.folderPath = "Models/"
+        self.classifierLossFactor = 1
         #self.train_losses_log = []
         #self.val_losses_log = []
 
@@ -167,6 +168,7 @@ class ModelTrainer:
         train_loss_y = MovingAverage()
         train_loss_z = MovingAverage()
         train_loss_phi = MovingAverage()
+        train_loss_class = MovingAverage()
 
         i = 0
         for batch_samples, batch_targets in training_generator:
@@ -174,9 +176,15 @@ class ModelTrainer:
             batch_targets = batch_targets.to(self.device)
             batch_samples = batch_samples.to(self.device)
             outputs = self.model(batch_samples)
-
-            if self.model.isClassifier:
-                loss = self.criterion(outputs.reshape(-1), batch_targets.float().reshape(-1))
+            if self.model.isCombined:
+                loss_x = self.criterion(outputs[0], (batch_targets[:, 0]).view(-1, 1))
+                loss_y = self.criterion(outputs[1], (batch_targets[:, 1]).view(-1, 1))
+                loss_z = self.criterion(outputs[2], (batch_targets[:, 2]).view(-1, 1))
+                loss_phi = self.criterion(outputs[3], (batch_targets[:, 3]).view(-1, 1))
+                loss_class = self.criterion_class(outputs[4], (batch_targets[:, 4]).view(-1, 1))
+                loss = loss_x + loss_y + loss_z + loss_phi + self.classifierLossFactor*loss_class
+            elif self.model.isClassifier:
+                loss = self.criterion_class(outputs.reshape(-1), batch_targets.float().reshape(-1))
             else:
                 loss_x = self.criterion(outputs[0], (batch_targets[:, 0]).view(-1, 1))
                 loss_y = self.criterion(outputs[1], (batch_targets[:, 1]).view(-1, 1))
@@ -188,7 +196,26 @@ class ModelTrainer:
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-            if self.model.isClassifier == False:
+            if self.model.isCombined:
+                train_loss_x.update(loss_x)
+                train_loss_y.update(loss_y)
+                train_loss_z.update(loss_z)
+                train_loss_phi.update(loss_phi)
+                train_loss_class.update(loss_class)
+                #self.train_losses_log.append(loss_x)
+
+                if (i + 1) % 100 == 0:
+                    logging.info("[ModelTrainer] Step [{}]: Average train loss {}, {}, {}, {}, {}".format(i+1, train_loss_x.value, train_loss_y.value, train_loss_z.value,
+                                                               train_loss_phi.value, train_loss_class.value))
+                i += 1
+            
+            elif self.model.isClassifier:
+                if (i + 1) % 100 == 0:
+                    logging.info("[ModelTrainer] Step [{}]: Average train loss {}".format(i+1, loss))
+
+                i += 1
+
+            else:
                 train_loss_x.update(loss_x)
                 train_loss_y.update(loss_y)
                 train_loss_z.update(loss_z)
@@ -198,14 +225,11 @@ class ModelTrainer:
                 if (i + 1) % 100 == 0:
                     logging.info("[ModelTrainer] Step [{}]: Average train loss {}, {}, {}, {}".format(i+1, train_loss_x.value, train_loss_y.value, train_loss_z.value,
                                                                train_loss_phi.value))
-                    i += 1
-            
-            else:
-                if (i + 1) % 100 == 0:
-                    logging.info("[ModelTrainer] Step [{}]: Average train loss {}".format(i+1, loss))
-
                 i += 1
-        if self.model.isClassifier:
+
+        if self.model.isCombined:
+            return train_loss_x.value, train_loss_y.value, train_loss_z.value, train_loss_phi.value, train_loss_class.value
+        elif self.model.isClassifier:
             return loss
         else:
             return train_loss_x.value, train_loss_y.value, train_loss_z.value, train_loss_phi.value
@@ -245,6 +269,7 @@ class ModelTrainer:
         valid_loss_y = RunningAverage()
         valid_loss_z = RunningAverage()
         valid_loss_phi = RunningAverage()
+        valid_loss_class = RunningAverage()
 
         y_pred = []
         gt_labels = []
@@ -256,8 +281,27 @@ class ModelTrainer:
                 batch_samples = batch_samples.to(self.device)
                 outputs = self.model(batch_samples)
 
-                if self.model.isClassifier:
-                    loss = self.criterion(outputs.reshape(-1), batch_targets.float().reshape(-1))
+                if self.model.isCombined:
+                    loss_x = self.criterion(outputs[0], (batch_targets[:, 0]).view(-1, 1))
+                    loss_y = self.criterion(outputs[1], (batch_targets[:, 1]).view(-1, 1))
+                    loss_z = self.criterion(outputs[2], (batch_targets[:, 2]).view(-1, 1))
+                    loss_phi = self.criterion(outputs[3], (batch_targets[:, 3]).view(-1, 1))
+                    loss_class = self.criterion_class(outputs[4], (batch_targets[:, 4]).view(-1, 1))
+                    loss = loss_x + loss_y + loss_z + loss_phi + self.classifierLossFactor*loss_class
+                    self.updateConfusionMatrix(outputs[4], (batch_targets[:, 4]).view(-1, 1))
+                    valid_loss.update(loss)
+                    valid_loss_x.update(loss_x)
+                    valid_loss_y.update(loss_y)
+                    valid_loss_z.update(loss_z)
+                    valid_loss_phi.update(loss_phi)
+                    valid_loss_class.update(loss_class)
+                    #self.val_losses_log.append(loss_x)
+
+                    outputs = torch.stack(outputs, 0)
+                    outputs = torch.squeeze(outputs)
+                    outputs = torch.t(outputs)
+                elif self.model.isClassifier:
+                    loss = self.criterion_class(outputs.reshape(-1), batch_targets.float().reshape(-1))
                     self.updateConfusionMatrix(outputs.reshape(-1), batch_targets.float().reshape(-1))
                 else:
                     loss_x = self.criterion(outputs[0], (batch_targets[:, 0]).view(-1, 1))
@@ -278,15 +322,23 @@ class ModelTrainer:
                     outputs = torch.t(outputs)
                 y_pred.extend(outputs.cpu().numpy())
 
-            if self.model.isClassifier == False:
+            if self.model.isCombined:
+                self.printConfusionMatrix()
+                logging.info("[ModelTrainer] Average validation loss {}, {}, {}, {}, {}".format(valid_loss_x.value, valid_loss_y.value,
+                                                                      valid_loss_z.value,
+                                                                      valid_loss_phi.value,
+                                                                      valid_loss_class.value))
+                return valid_loss_x.value, valid_loss_y.value, valid_loss_z.value, valid_loss_phi.value, valid_loss_class.value, y_pred, gt_labels
+            elif self.model.isClassifier:
+                self.printConfusionMatrix()
+                logging.info("[ModelTrainer] Average validation loss {}".format(loss))
+                return loss, y_pred, gt_labels
+            else:
                 logging.info("[ModelTrainer] Average validation loss {}, {}, {}, {}".format(valid_loss_x.value, valid_loss_y.value,
                                                                       valid_loss_z.value,
                                                                       valid_loss_phi.value))
                 return valid_loss_x.value, valid_loss_y.value, valid_loss_z.value, valid_loss_phi.value, y_pred, gt_labels
-            else:
-                self.printConfusionMatrix()
-                logging.info("[ModelTrainer] Average validation loss {}".format(loss))
-                return loss, y_pred, gt_labels
+                
 
     def Train(self, training_generator, validation_generator, tb=None):
 
@@ -308,8 +360,44 @@ class ModelTrainer:
             # if ended:
             #     break
 
-            if self.model.isClassifier == False:
+            if self.model.isCombined:
 
+                train_loss_x, train_loss_y, train_loss_z, train_loss_phi, train_loss_class = self.TrainSingleEpoch(training_generator)
+
+                valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, valid_loss_class, y_pred, gt_labels = self.ValidateSingleEpoch(
+                    validation_generator)
+
+                valid_loss = valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi + self.classifierLossFactor*valid_loss_class
+                scheduler.step(valid_loss)
+
+                gt_labels = torch.tensor(gt_labels, dtype=torch.float32)
+                y_pred = torch.tensor(y_pred, dtype=torch.float32)
+                MSE, MAE, r_score = metrics.Update(y_pred, gt_labels,
+                                                   [train_loss_x, train_loss_y, train_loss_z, train_loss_phi, train_loss_class],
+                                                   [valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, valid_loss_class])
+                train_total_loss = train_loss_x + train_loss_y + train_loss_z + train_loss_phi + self.classifierLossFactor*train_loss_class
+                valid_total_loss = valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi + self.classifierLossFactor*valid_loss_class
+                if tb != None:
+                    AddLosssesTB(self, tb, epoch, train_loss_x, train_loss_y, train_loss_z, train_total_loss, valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, valid_total_loss)
+                    try:
+                        tb.add_scalar('Lossclass/train', train_loss_class, epoch)
+                        tb.add_scalar('Lossclass/valid', valid_loss_class, epoch)
+                    except Exception as e:
+                        print(e)
+                logging.info('[ModelTrainer] Validation MSE: {}'.format(MSE))
+                logging.info('[ModelTrainer] Validation MAE: {}'.format(MAE))
+                logging.info('[ModelTrainer] Validation r_score: {}'.format(r_score))
+
+            elif self.model.isClassifier:
+                train_total_loss = self.TrainSingleEpoch(training_generator)
+                valid_total_loss, y_pred, gt_labels = self.ValidateSingleEpoch(validation_generator)
+                if tb != None:
+                    try:
+                        tb.add_scalar('TotalLoss/train', train_total_loss, epoch)
+                        tb.add_scalar('TotalLoss/valid', valid_total_loss, epoch)
+                    except Exception as e:
+                        print(e)
+            else:
                 train_loss_x, train_loss_y, train_loss_z, train_loss_phi = self.TrainSingleEpoch(training_generator)
 
                 valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
@@ -330,16 +418,7 @@ class ModelTrainer:
 
                 logging.info('[ModelTrainer] Validation MSE: {}'.format(MSE))
                 logging.info('[ModelTrainer] Validation MAE: {}'.format(MAE))
-                logging.info('[ModelTrainer] Validation r_score: {}'.format(r_score))
-            else:
-                train_total_loss = self.TrainSingleEpoch(training_generator)
-                valid_total_loss, y_pred, gt_labels = self.ValidateSingleEpoch(validation_generator)
-                if tb != None:
-                    try:
-                        tb.add_scalar('TotalLoss/train', train_total_loss, epoch)
-                        tb.add_scalar('TotalLoss/valid', valid_total_loss, epoch)
-                    except Exception as e:
-                        print(e)
+                logging.info('[ModelTrainer] Validation r_score: {}'.format(r_score))                
 
 
             checkpoint_filename = self.folderPath + self.model.name + '-{:03d}.pt'.format(epoch)
@@ -415,7 +494,30 @@ class ModelTrainer:
     def Predict(self, test_generator):
 
         metrics = Metrics()
-        if self.model.isClassifier == False:
+        if self.model.isCombined:
+            valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, valid_loss_class, y_pred, gt_labels = self.ValidateSingleEpoch(
+                test_generator)
+
+            gt_labels = torch.tensor(gt_labels, dtype=torch.float32)
+            y_pred = torch.tensor(y_pred, dtype=torch.float32)
+            MSE, MAE, r_score = metrics.Update(y_pred, gt_labels,
+                                               [0, 0, 0, 0, 0],
+                                               [valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, valid_loss_class])
+
+            y_pred_viz = metrics.GetPred()
+            gt_labels_viz = metrics.GetLabels()
+
+            DataVisualization.desc = "Test_"
+            DataVisualization.PlotGTandEstimationVsTime(gt_labels_viz, y_pred_viz)
+            DataVisualization.PlotGTVsEstimation(gt_labels_viz, y_pred_viz)
+            DataVisualization.DisplayPlots()
+            logging.info('[ModelTrainer] Test MSE: {}'.format(MSE))
+            logging.info('[ModelTrainer] Test MAE: {}'.format(MAE))
+            logging.info('[ModelTrainer] Test r_score: {}'.format(r_score))
+        elif self.model.isClassifier:
+            valid_loss, y_pred, gt_labels  = self.ValidateSingleEpoch(test_generator)
+            logging.info('[ModelTrainer] Test loss: {}'.format(valid_loss))
+        else:
             valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
                 test_generator)
 
@@ -435,9 +537,6 @@ class ModelTrainer:
             logging.info('[ModelTrainer] Test MSE: {}'.format(MSE))
             logging.info('[ModelTrainer] Test MAE: {}'.format(MAE))
             logging.info('[ModelTrainer] Test r_score: {}'.format(r_score))
-        else:
-            valid_loss, y_pred, gt_labels  = self.ValidateSingleEpoch(test_generator)
-            logging.info('[ModelTrainer] Test loss: {}'.format(valid_loss))
 
     def Infer(self, live_generator):
 

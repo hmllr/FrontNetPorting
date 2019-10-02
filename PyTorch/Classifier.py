@@ -84,23 +84,23 @@ def LoadData(args):
 
     if args.gray is not None:
         [x_train_head, x_validation_head, y_train_head, y_validation_head] = DataProcessor.ProcessTrainData(
-            args.load_trainset, 60, 108, isGray=True, isClassifier=True, fromPics=False)
-        [x_test_head, y_test_head] = DataProcessor.ProcessTestData(args.load_testset, 60, 108, isGray=True, isClassifier=True, fromPics=False)
+            args.load_trainset, 60, 108, isGray=True, isCombined=True, fromPics=False)
+        [x_test_head, y_test_head] = DataProcessor.ProcessTestData(args.load_testset, 60, 108, isGray=True, isCombined=True, fromPics=False)
         [x_train_nohead, x_validation_nohead, y_train_nohead, y_validation_nohead] = DataProcessor.ProcessTrainData(
-            args.load_trainset, 60, 108, isGray=True, isClassifier=True, fromPics=True, picsPath=args.load_trainpics)
+            args.load_trainset, 60, 108, isGray=True, isCombined=True, fromPics=True, picsPath=args.load_trainpics)
         [x_test_nohead, y_test_nohead] = DataProcessor.ProcessTestData(
-            args.load_testset, 60, 108, isGray=True, isClassifier=True, fromPics=True, picsPath=args.load_testpics)
+            args.load_testset, 60, 108, isGray=True, isCombined=True, fromPics=True, picsPath=args.load_testpics)
     print(np.shape(x_train_head), np.shape(x_train_nohead))
     x_train = np.concatenate((x_train_head, x_train_nohead))
-    y_train = np.concatenate((y_train_head, y_train_nohead))
+    y_train = np.concatenate((y_train_head, y_train_nohead)).astype(np.float32)
     x_test = np.concatenate((x_test_head, x_test_nohead))
-    y_test = np.concatenate((y_test_head, y_test_nohead))
+    y_test = np.concatenate((y_test_head, y_test_nohead)).astype(np.float32)
     x_validation = np.concatenate((x_validation_head, x_validation_nohead))
-    y_validation = np.concatenate((y_validation_head, y_validation_nohead))
+    y_validation = np.concatenate((y_validation_head, y_validation_nohead)).astype(np.float32)
 
-    training_set = Dataset(x_train, y_train, True, isClassifier=True)
-    validation_set = Dataset(x_validation, y_validation, isClassifier=True)
-    test_set = Dataset(x_test, y_test, isClassifier=True)
+    training_set = Dataset(x_train, y_train, True, isClassifier=False) #False because not only classifier FIXME
+    validation_set = Dataset(x_validation, y_validation, isClassifier=False)
+    test_set = Dataset(x_test, y_test, isClassifier=False)
 
     # Parameters
     num_workers = 6
@@ -155,7 +155,7 @@ def main():
                 regime[k] = rr[k]
 
     if args.gray is not None:
-        model = FindNet(PreActBlockSimple, [1, 1, 1], True, isClassifier=True)
+        model = FindNet(PreActBlockSimple, [1, 1, 1], True, isCombined=True)
     else:
         model = FindNet(PreActBlockSimple, [1, 1, 1], False)
 

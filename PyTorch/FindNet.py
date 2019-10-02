@@ -14,10 +14,11 @@ def conv1x1(in_planes, out_planes, stride=1):
 
 # FrontNet
 class FindNet(nn.Module):
-    def __init__(self, block, layers, isGray=False, isClassifier=False):
+    def __init__(self, block, layers, isGray=False, isClassifier=False, isCombined=False):
         super(FindNet, self).__init__()
 
         self.isClassifier = isClassifier
+        self.isCombined = isCombined
         if isGray ==True:
             self.name = "FindNetGray"
         else:
@@ -86,7 +87,9 @@ class FindNet(nn.Module):
         z = self.fc_z(out)
         phi = self.fc_phi(out)
         head = self.fc_class(out)
-        if self.isClassifier:
+        if self.isCombined:
+            return [x, y, z, phi, self.sig(head)]
+        elif self.isClassifier:
             return self.sig(head)
 
         return [x, y, z, phi]
