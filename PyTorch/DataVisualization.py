@@ -5,6 +5,8 @@ import matplotlib.gridspec as gridspec
 import numpy as np
 import cv2
 import matplotlib.image as mpimg
+import matplotlib
+from matplotlib.lines import Line2D
 
 class DataVisualization:
 
@@ -271,6 +273,10 @@ class DataVisualization:
     def DisplayPlots():
         plt.show()
 
+    def PlotOneLabel(plt, x_gt, x_pred, color_values, label, color, markerSize=20, alpha=0.3):
+        indices = [i for i, x in enumerate(color_values) if x == label]
+        ret = plt.scatter(x_gt[indices], x_pred[indices], s=markerSize, color=color, marker='.', alpha=alpha)
+        return ret
 
     @staticmethod
     def PlotGTVsEstimation(gt_labels, predictions):
@@ -283,45 +289,76 @@ class DataVisualization:
         gt_labels = np.reshape(gt_labels, (-1, n_gt_outputs))
         predictions = predictions.cpu().numpy()
         predictions = np.reshape(predictions, (-1, n_gt_outputs))
+        color_values = (np.around(gt_labels[:,4]) + 2*np.around(predictions[:,4])).astype(int)
+        print(color_values)
+        colors = ['red','blue', 'purple', 'green']
+        labels = ['TN', 'FN', 'FP', 'TP']
+        markerSize=20
+        alpha=0.3
+        cmap = plt.get_cmap('jet', 4)
 
+        
         gs = gridspec.GridSpec(2, 2)
         ax = plt.subplot(gs[0, 0])
         ax.set_title('x')
         ax.set_xmargin(0.2)
         x_gt = gt_labels[:, 0]
         x_pred = predictions[:, 0]
-        plt.scatter(x_gt, x_pred, color='green', marker='o')
+        tn = DataVisualization.PlotOneLabel(plt, x_gt, x_pred, color_values, 0, 'red')
+        fn = DataVisualization.PlotOneLabel(plt, x_gt, x_pred, color_values, 1, 'blue')
+        fp = DataVisualization.PlotOneLabel(plt, x_gt, x_pred, color_values, 2, 'purple')
+        tp = DataVisualization.PlotOneLabel(plt, x_gt, x_pred, color_values, 3, 'green')
+        #plt.scatter(x_gt, x_pred, s=markerSize, c=color_values, cmap=cmap, marker='.', alpha=alpha)
         plt.plot(x_gt, x_gt, color='black', linestyle='--')
-
-        plt.legend()
+        plt.xlabel("Ground Truth")
+        plt.ylabel("Prediction")
+        # produce a legend with the unique colors from the scatter
+        plt.legend((tn,fn,fp,tp),labels)
 
         ax = plt.subplot(gs[0, 1])
         ax.set_title('y')
         ax.set_xmargin(0.2)
         y_gt = gt_labels[:, 1]
         y_pred = predictions[:, 1]
-        plt.scatter(y_gt, y_pred, color='blue', marker='o')
+        tn = DataVisualization.PlotOneLabel(plt, y_gt, y_pred, color_values, 0, 'red')
+        tp = DataVisualization.PlotOneLabel(plt, y_gt, y_pred, color_values, 3, 'green')
+        fn = DataVisualization.PlotOneLabel(plt, y_gt, y_pred, color_values, 1, 'blue')
+        fp = DataVisualization.PlotOneLabel(plt, y_gt, y_pred, color_values, 2, 'purple')
+        #plt.scatter(y_gt, y_pred, s=markerSize, c=color_values, cmap=cmap, marker='.', alpha=alpha)
         plt.plot(y_gt, y_gt, color='black', linestyle='--')
-        plt.legend()
+        plt.xlabel("Ground Truth")
+        plt.ylabel("Prediction")
+        plt.legend((tn,fn,fp,tp),labels)
 
         ax = plt.subplot(gs[1, 0])
         ax.set_title('z')
         ax.set_xmargin(0.2)
         z_gt = gt_labels[:, 2]
         z_pred = predictions[:, 2]
-        plt.scatter(z_gt, z_pred, color='r', marker='o')
+        tn = DataVisualization.PlotOneLabel(plt, z_gt, z_pred, color_values, 0, 'red')
+        tp = DataVisualization.PlotOneLabel(plt, z_gt, z_pred, color_values, 3, 'green')
+        fn = DataVisualization.PlotOneLabel(plt, z_gt, z_pred, color_values, 1, 'blue')
+        fp = DataVisualization.PlotOneLabel(plt, z_gt, z_pred, color_values, 2, 'purple')
+        #plt.scatter(z_gt, z_pred, s=markerSize, c=color_values, cmap=cmap, marker='.', alpha=alpha)
         plt.plot(z_gt, z_gt, color='black', linestyle='--')
-
-        plt.legend()
+        plt.xlabel("Ground Truth")
+        plt.ylabel("Prediction")
+        plt.legend((tn,fn,fp,tp),labels)
 
         ax = plt.subplot(gs[1, 1])
         ax.set_title('phi')
         ax.set_xmargin(0.2)
         phi_gt = gt_labels[:, 3]
         phi_pred = predictions[:, 3]
-        plt.scatter(phi_gt, phi_pred, color='m', marker='o')
+        tn = DataVisualization.PlotOneLabel(plt, phi_gt, phi_pred, color_values, 0, 'red')
+        tp = DataVisualization.PlotOneLabel(plt, phi_gt, phi_pred, color_values, 3, 'green')
+        fn = DataVisualization.PlotOneLabel(plt, phi_gt, phi_pred, color_values, 1, 'blue')
+        fp = DataVisualization.PlotOneLabel(plt, phi_gt, phi_pred, color_values, 2, 'purple')
+        #plt.scatter(phi_gt, phi_pred, s=markerSize, c=color_values, cmap=cmap, marker='.', alpha=alpha)
         plt.plot(phi_gt, phi_gt, color='black', linestyle='--')
-        plt.legend()
+        plt.xlabel("Ground Truth")
+        plt.ylabel("Prediction")
+        plt.legend((tn,fn,fp,tp),labels)
 
         plt.subplots_adjust(hspace=0.3)
         plt.suptitle('Ground Truth vs Predictions')
