@@ -9,6 +9,7 @@ from ValidationUtils import Metrics
 import nemo
 import logging
 from collections import OrderedDict
+import cv2
 
 class ModelTrainer:
     def __init__(self, model, args, regime):
@@ -176,11 +177,21 @@ class ModelTrainer:
             batch_targets = batch_targets.to(self.device)
             batch_samples = batch_samples.to(self.device)
             outputs = self.model(batch_samples)
+            
             if self.model.isCombined:
-                loss_x = self.criterion(outputs[0], (batch_targets[:, 0]).view(-1, 1))
-                loss_y = self.criterion(outputs[1], (batch_targets[:, 1]).view(-1, 1))
-                loss_z = self.criterion(outputs[2], (batch_targets[:, 2]).view(-1, 1))
-                loss_phi = self.criterion(outputs[3], (batch_targets[:, 3]).view(-1, 1))
+                # we either only want to count the pose loss if the image has a head - or we want to teach it that no head is 50m away in the center
+                NoHeadNoPoseLoss = True
+                if NoHeadNoPoseLoss:
+                    indices = [i for i, label in enumerate((batch_targets[:, 5]).view(-1, 1).round().int()) if label == 0]
+                    loss_x = self.criterion(outputs[0][indices], (batch_targets[indices, 0]).view(-1, 1))
+                    loss_y = self.criterion(outputs[1][indices], (batch_targets[indices, 1]).view(-1, 1))
+                    loss_z = self.criterion(outputs[2][indices], (batch_targets[indices, 2]).view(-1, 1))
+                    loss_phi = self.criterion(outputs[3][indices], (batch_targets[indices, 3]).view(-1, 1))
+                else:
+                    loss_x = self.criterion(outputs[0][:], (batch_targets[:, 0]).view(-1, 1))
+                    loss_y = self.criterion(outputs[1][:], (batch_targets[:, 1]).view(-1, 1))
+                    loss_z = self.criterion(outputs[2][:], (batch_targets[:, 2]).view(-1, 1))
+                    loss_phi = self.criterion(outputs[3][:], (batch_targets[:, 3]).view(-1, 1))
                 loss_class = self.criterion_class(outputs[4], (batch_targets[:, 4]).view(-1, 1))
                 loss = loss_x + loss_y + loss_z + loss_phi + self.classifierLossFactor*loss_class
             elif self.model.isClassifier:
@@ -275,17 +286,32 @@ class ModelTrainer:
         gt_labels = []
         self.initConfusionMatrix()
         with torch.no_grad():
+            batchcounter = 0
             for batch_samples, batch_targets in validation_generator:
                 gt_labels.extend(batch_targets.cpu().numpy())
                 batch_targets = batch_targets.to(self.device)
                 batch_samples = batch_samples.to(self.device)
                 outputs = self.model(batch_samples)
+                debug = True
+                if debug:
+                    for i in range(0,len(batch_samples)):
+                        if abs(batch_targets[i,4] - outputs[4][i]) >= 0.5: 
+                            print(outputs[0][i], outputs[1][i], outputs[2][i], outputs[4][i])
+                            print(batch_samples[i])
+                            pic = np.swapaxes(batch_samples[i].numpy(), 0, 2)
+                            pic = np.swapaxes(pic, 0, 1)
+                            print(np.shape(pic))
+                            cv2.imshow("Test"+str(batchcounter) + str(i), pic.astype(np.uint8))
+                            cv2.waitKey(0)
+                    batchcounter += 1
 
                 if self.model.isCombined:
-                    loss_x = self.criterion(outputs[0], (batch_targets[:, 0]).view(-1, 1))
-                    loss_y = self.criterion(outputs[1], (batch_targets[:, 1]).view(-1, 1))
-                    loss_z = self.criterion(outputs[2], (batch_targets[:, 2]).view(-1, 1))
-                    loss_phi = self.criterion(outputs[3], (batch_targets[:, 3]).view(-1, 1))
+                    # the loss of a wrong prediction if there is no head should be neglected
+                    indices = [i for i, x in enumerate((batch_targets[:, 5]).view(-1, 1).round().int()) if x == 0]
+                    loss_x = self.criterion(outputs[0][indices], (batch_targets[indices, 0]).view(-1, 1))
+                    loss_y = self.criterion(outputs[1][indices], (batch_targets[indices, 1]).view(-1, 1))
+                    loss_z = self.criterion(outputs[2][indices], (batch_targets[indices, 2]).view(-1, 1))
+                    loss_phi = self.criterion(outputs[3][indices], (batch_targets[indices, 3]).view(-1, 1))
                     loss_class = self.criterion_class(outputs[4], (batch_targets[:, 4]).view(-1, 1))
                     loss = loss_x + loss_y + loss_z + loss_phi + self.classifierLossFactor*loss_class
                     self.updateConfusionMatrix(outputs[4], (batch_targets[:, 4]).view(-1, 1))
@@ -371,6 +397,7 @@ class ModelTrainer:
                 scheduler.step(valid_loss)
 
                 gt_labels = torch.tensor(gt_labels, dtype=torch.float32)
+                gt_labels = gt_labels[:,:5]
                 y_pred = torch.tensor(y_pred, dtype=torch.float32)
                 MSE, MAE, r_score = metrics.Update(y_pred, gt_labels,
                                                    [train_loss_x, train_loss_y, train_loss_z, train_loss_phi, train_loss_class],
@@ -378,7 +405,7 @@ class ModelTrainer:
                 train_total_loss = train_loss_x + train_loss_y + train_loss_z + train_loss_phi + self.classifierLossFactor*train_loss_class
                 valid_total_loss = valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi + self.classifierLossFactor*valid_loss_class
                 if tb != None:
-                    AddLosssesTB(self, tb, epoch, train_loss_x, train_loss_y, train_loss_z, train_total_loss, valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, valid_total_loss)
+                    self.AddLosssesTB(tb, epoch, train_loss_x, train_loss_y, train_loss_z, train_loss_phi, train_total_loss, valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, valid_total_loss)
                     try:
                         tb.add_scalar('Lossclass/train', train_loss_class, epoch)
                         tb.add_scalar('Lossclass/valid', valid_loss_class, epoch)
@@ -499,7 +526,9 @@ class ModelTrainer:
                 test_generator)
 
             gt_labels = torch.tensor(gt_labels, dtype=torch.float32)
+            gt_labels = gt_labels[:,:5]
             y_pred = torch.tensor(y_pred, dtype=torch.float32)
+            print(y_pred)
             MSE, MAE, r_score = metrics.Update(y_pred, gt_labels,
                                                [0, 0, 0, 0, 0],
                                                [valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, valid_loss_class])
@@ -545,7 +574,7 @@ class ModelTrainer:
 
         return y_pred
 
-    def AddLosssesTB(self, tb, epoch, train_loss_x, train_loss_y, train_loss_z, train_total_loss, valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, valid_total_loss):
+    def AddLosssesTB(self, tb, epoch, train_loss_x, train_loss_y, train_loss_z, train_loss_phi, train_total_loss, valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, valid_total_loss):
         try:
             tb.add_scalar('Lossx/train', train_loss_x, epoch)
             tb.add_scalar('Lossy/train', train_loss_y, epoch)
