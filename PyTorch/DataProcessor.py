@@ -18,7 +18,7 @@ from ImageTransformer import ImageTransformer
 class DataProcessor:
 
     @staticmethod
-    def ProcessTrainData(trainPath, image_height, image_width, isGray = False, isExtended=False, isClassifier=False, fromPics=False, picsPath=None, isCombined=False):
+    def ProcessTrainData(trainPath, image_height, image_width, isGray = False, isExtended=False, isClassifier=False, fromPics=False, picsPath=None, isCombined=False, noPose=False, fromCaltech=False, head=False):
         """Reads the .pickle file and converts it into a format suitable fot training
 
             Parameters
@@ -40,11 +40,48 @@ class DataProcessor:
             list
                 list of video frames and list of labels (poses)
             """
-        if fromPics == False:
+        if fromCaltech:
+            noPose = True
             train_set = pd.read_pickle(trainPath).values
-            #train_set = train_set[0:10000]
+            logging.info('[DataProcessor] train caltech shape: ' + str(train_set.shape))
+            size = len(train_set[:, 0])
+            n_val = int(float(size) * 0.2)
+            #n_val = 13000
 
-            logging.info('[DataProcessor] train shape: ' + str(train_set.shape))
+            np.random.seed()
+            # split between train and test sets:
+            x_train = train_set[:, 0]
+            x_train = np.vstack(x_train[:]).astype(np.float32)
+            if isGray == True:
+                x_train = np.reshape(x_train, (-1, image_height, image_width, 1))
+            else:
+                x_train = np.reshape(x_train, (-1, image_height, image_width, 3))
+
+            x_train= np.swapaxes(x_train, 1, 3)
+            x_train = np.swapaxes(x_train, 2, 3)
+
+            y_train_headlabels = train_set[:, 1]
+
+            ix_val, ix_tr = np.split(np.random.permutation(train_set.shape[0]), [n_val])
+            #print(train_set.shape[0], n_val, ix_val)
+            x_validation = x_train[ix_val, :]
+            x_train = x_train[ix_tr, :]
+            y_validation_headlabels = y_train_headlabels[ix_val]
+            y_train_headlabels = y_train_headlabels[ix_tr]
+
+            shape_ = len(x_train)
+            # randomize order
+            sel_idx = random.sample(range(0, shape_), k=(size-n_val))
+            #sel_idx = random.sample(range(0, shape_), k=50000)
+            x_train = x_train[sel_idx, :]
+            y_train_headlabels = y_train_headlabels[sel_idx]
+
+        elif fromPics == False:
+
+            train_set = pd.read_pickle(trainPath).values
+            #train_set = train_set[0:20000]
+
+            logging.info('[DataProcessor] train dario shape: ' + str(train_set.shape))
             size = len(train_set[:, 0])
             n_val = int(float(size) * 0.2)
             #n_val = 13000
@@ -65,19 +102,20 @@ class DataProcessor:
             y_train = np.vstack(y_train[:]).astype(np.float32)
 
             ix_val, ix_tr = np.split(np.random.permutation(train_set.shape[0]), [n_val])
-            print(train_set.shape[0], n_val, ix_val)
+            #print(train_set.shape[0], n_val, ix_val)
             x_validation = x_train[ix_val, :]
             x_train = x_train[ix_tr, :]
             y_validation = y_train[ix_val, :]
             y_train = y_train[ix_tr, :]
 
             shape_ = len(x_train)
-
+            # randomize order
             sel_idx = random.sample(range(0, shape_), k=(size-n_val))
             #sel_idx = random.sample(range(0, shape_), k=50000)
             x_train = x_train[sel_idx, :]
             y_train = y_train[sel_idx, :]
         else:
+            noPose = True
             x_train =[]
             size = 0
             for root, dirs, files in os.walk(picsPath):
@@ -116,6 +154,11 @@ class DataProcessor:
                         #X = np.swapaxes(X, 2, 3)
                         x_train.append(X)
                         size+=1
+            num_randimg = 1000
+            for x in range(1,num_randimg):
+                x_train.append(np.random.randint(max(20,255*x/num_randimg),size=np.shape(X)).astype("uint8"))
+                x_train.append(np.random.randint(1+255.*x/num_randimg)*np.ones(np.shape(X)).astype("uint8"))
+            size += 2*num_randimg - 2
             x_train = np.asarray(x_train)
             x_train = np.reshape(x_train, (-1, image_height, image_width, 1))
             x_train = np.swapaxes(x_train, 1, 3)
@@ -123,7 +166,6 @@ class DataProcessor:
             logging.info('[DataProcessor] train pics number: ' + str(size))
             n_val = int(float(size) * 0.2)
             ix_val, ix_tr = np.split(np.random.permutation(size), [n_val])
-            print(size, n_val, ix_val)
             x_validation = x_train[ix_val, :]
             x_train = x_train[ix_tr, :]
 
@@ -135,13 +177,30 @@ class DataProcessor:
 
         if isCombined:
             if fromPics == True:
-                # all zeros as no head
-                y_train = np.concatenate((np.array((50,0,0,0))*np.ones((len(x_train),4)),np.reshape(np.zeros(len(x_train)),(len(x_train),-1))), axis=1).astype(np.float32)
-                y_validation = np.concatenate((np.array((50,0,0,0))*np.ones((len(x_validation),4)),np.reshape(np.zeros(len(x_validation)),(len(x_validation),-1))), axis=1).astype(np.float32)
+                # all zeros/ones for head/no head
+                if head:
+                    y_train = np.concatenate((np.array((0,0,0,0))*np.ones((len(x_train),4)) , np.reshape(np.ones(len(x_train)),(len(x_train),-1))), axis=1).astype(np.float32)
+                    y_validation = np.concatenate((np.array((0,0,0,0))*np.ones((len(x_validation),4)),np.reshape(np.ones(len(x_validation)),(len(x_validation),-1))), axis=1).astype(np.float32)
+                else:
+                    y_train = np.concatenate((np.array((0,0,0,0))*np.ones((len(x_train),4)) , np.reshape(np.zeros(len(x_train)),(len(x_train),-1))), axis=1).astype(np.float32)
+                    y_validation = np.concatenate((np.array((0,0,0,0))*np.ones((len(x_validation),4)),np.reshape(np.zeros(len(x_validation)),(len(x_validation),-1))), axis=1).astype(np.float32)
+            elif fromCaltech:
+                #FIXME maybe choose a different fake gt to plot nicely. Concat head/no head labels at the end
+                y_train = np.concatenate((np.array((0,0,0,0))*np.ones((len(x_train),4)) , np.reshape(y_train_headlabels,(len(x_train),-1))), axis=1).astype(np.float32)
+                y_validation = np.concatenate((np.array((0,0,0,0))*np.ones((len(x_validation),4)),np.reshape(y_validation_headlabels,(len(x_validation),-1))), axis=1).astype(np.float32)
             else:
                 # concat ones at the end, for classifier results
                 y_train = np.concatenate((y_train,np.reshape(np.ones(len(x_train)),(len(x_train),-1))), axis=1).astype(np.float32)
                 y_validation = np.concatenate((y_validation,np.reshape(np.ones(len(x_validation)),(len(x_validation),-1))), axis=1).astype(np.float32)
+            if noPose:
+               # add label for ignoring pose loss
+               y_train = np.concatenate((y_train , np.reshape(np.ones(len(x_train)),(len(x_train),-1))), axis=1).astype(np.float32)
+               y_validation = np.concatenate((y_validation , np.reshape(np.ones(len(x_validation)),(len(x_validation),-1))), axis=1).astype(np.float32) 
+            else:
+                # add label for considering pose loss
+               y_train = np.concatenate((y_train , np.reshape(np.zeros(len(x_train)),(len(x_train),-1))), axis=1).astype(np.float32)
+               y_validation = np.concatenate((y_validation , np.reshape(np.zeros(len(x_validation)),(len(x_validation),-1))), axis=1).astype(np.float32) 
+
         elif isClassifier == True:
             if fromPics == True:
                 y_train = np.zeros(len(x_train))
@@ -161,7 +220,7 @@ class DataProcessor:
         return [np.asarray(x_train), x_validation, y_train, y_validation]
 
     @staticmethod
-    def ProcessTestData(testPath, image_height, image_width, isGray = False, isExtended=False, isClassifier=False, fromPics=False, picsPath=None, isCombined=False):
+    def ProcessTestData(testPath, image_height, image_width, isGray = False, isExtended=False, isClassifier=False, fromPics=False, picsPath=None, isCombined=False, fromCaltech=False):
         """Reads the .pickle file and converts it into a format suitable fot testing
 
             Parameters
@@ -183,7 +242,29 @@ class DataProcessor:
             list
                 list of video frames and list of labels (poses)
             """
-        if fromPics == False:
+        if fromCaltech:
+            noPose = True
+            test_set = pd.read_pickle(testPath).values
+            logging.info('[DataProcessor] test caltech shape: ' + str(test_set.shape))
+            size = len(test_set[:, 0])
+
+            np.random.seed()
+            # split between test and test sets:
+            x_test = test_set[:, 0]
+            x_test = np.vstack(x_test[:]).astype(np.float32)
+            if isGray == True:
+                x_test = np.reshape(x_test, (-1, image_height, image_width, 1))
+            else:
+                x_test = np.reshape(x_test, (-1, image_height, image_width, 3))
+
+            x_test= np.swapaxes(x_test, 1, 3)
+            x_test = np.swapaxes(x_test, 2, 3)
+
+            y_test_headlabels = test_set[:, 1]
+
+
+        elif fromPics == False:
+            noPose = True
             test_set = pd.read_pickle(testPath).values
             #test_set = test_set[0:500]
             logging.info('[DataProcessor] test shape: ' + str(test_set.shape))
@@ -199,6 +280,7 @@ class DataProcessor:
             y_test = test_set[:, 1]
             y_test = np.vstack(y_test[:]).astype(np.float32)
         else:
+            noPose = False
             x_test =[]
             size = 0
             for root, dirs, files in os.walk(picsPath):
@@ -218,6 +300,7 @@ class DataProcessor:
                         x_test.append(X)
                         size+=1'''
                     if file.endswith('.pgm'):
+                        #print(file)
                         X = cv2.imread(root +'/'+ file, 0)
                         X = np.reshape(X, (244, 324))
                         #cv2.imshow('test' + str(size),X.astype("uint8"))
@@ -243,9 +326,18 @@ class DataProcessor:
             # put ones/zeros for classifier result to end of pose gt (if no head, no pose)
             if fromPics == True:
                 #y_test = np.zeros((len(x_test),5)).astype(np.float32)
-                y_test = np.concatenate((np.array((50,0,0,0))*np.ones((len(x_test),4)),np.reshape(np.zeros(len(x_test)),(len(x_test),-1))), axis=1).astype(np.float32)
+                y_test = np.concatenate((np.array((0,0,0,0))*np.ones((len(x_test),4)),np.reshape(np.zeros(len(x_test)),(len(x_test),-1))), axis=1).astype(np.float32)
+            elif fromCaltech:
+                #FIXME maybe choose a different fake gt to plot nicely. Concat head/no head labels at the end
+                y_test = np.concatenate((np.array((0,0,0,0))*np.ones((len(x_test),4)) , np.reshape(y_test_headlabels,(len(x_test),-1))), axis=1).astype(np.float32)
             else:
                 y_test = np.concatenate((y_test,np.reshape(np.ones(len(x_test)),(len(x_test),-1))), axis=1).astype(np.float32)
+            if noPose:
+               # add label for ignoring pose loss
+               y_test = np.concatenate((y_test , np.reshape(np.ones(len(x_test)),(len(x_test),-1))), axis=1).astype(np.float32)
+            else:
+                # add label for considering pose loss
+               y_test = np.concatenate((y_test , np.reshape(np.zeros(len(x_test)),(len(x_test),-1))), axis=1).astype(np.float32)
         elif isClassifier == True:
             if fromPics == True:
                 y_test = np.zeros(len(x_test))

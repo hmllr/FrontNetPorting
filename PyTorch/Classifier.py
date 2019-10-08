@@ -69,34 +69,108 @@ def Parse(parser):
                         help='for only predicting(need --load-model)')
     parser.add_argument('--pic', default=None, type=str,
                         help='for loading a picture')
-    parser.add_argument('--load-trainpics', default=None, type=str,
-                        help='for loading train pictures')
+    parser.add_argument('--load-trainpics-nohead', default=None, type=str,
+                        help='for loading no head train pictures')
+    parser.add_argument('--load-trainpics-head', default=None, type=str,
+                        help='for loading head train pictures')
     parser.add_argument('--load-testpics', default=None, type=str,
                         help='for loading test pictures')
     parser.add_argument('--singlepic', default=None, type=int,
                         help='for testing single picture')
+    parser.add_argument('--load-traincaltech', default=None, type=str,
+                        help='for loading train caltech (as pickle)')
+    parser.add_argument('--load-testcaltech', default=None, type=str,
+                        help='for loading test caltech (as pickle)')
     args = parser.parse_args()
 
     return args
 
+def HelperConcat2(base, extend):
+    try:
+        return np.concatenate((base, extend)).astype(np.float32)
+    except:
+        return extend.astype(np.float32)
 
 def LoadData(args):
 
     if args.gray is not None:
-        [x_train_head, x_validation_head, y_train_head, y_validation_head] = DataProcessor.ProcessTrainData(
-            args.load_trainset, 60, 108, isGray=True, isCombined=True, fromPics=False)
-        [x_test_head, y_test_head] = DataProcessor.ProcessTestData(args.load_testset, 60, 108, isGray=True, isCombined=True, fromPics=False)
-        [x_train_nohead, x_validation_nohead, y_train_nohead, y_validation_nohead] = DataProcessor.ProcessTrainData(
-            args.load_trainset, 60, 108, isGray=True, isCombined=True, fromPics=True, picsPath=args.load_trainpics)
-        [x_test_nohead, y_test_nohead] = DataProcessor.ProcessTestData(
-            args.load_testset, 60, 108, isGray=True, isCombined=True, fromPics=True, picsPath=args.load_testpics)
-    print(np.shape(x_train_head), np.shape(x_train_nohead))
-    x_train = np.concatenate((x_train_head, x_train_nohead))
-    y_train = np.concatenate((y_train_head, y_train_nohead)).astype(np.float32)
-    x_test = np.concatenate((x_test_head, x_test_nohead))
-    y_test = np.concatenate((y_test_head, y_test_nohead)).astype(np.float32)
-    x_validation = np.concatenate((x_validation_head, x_validation_nohead))
-    y_validation = np.concatenate((y_validation_head, y_validation_nohead)).astype(np.float32)
+        x_train = y_train = x_validation = y_validation = x_test = y_test = None
+        # load training set
+        #   load head pose labeled data ("darios dataset")
+        if args.load_trainset is not None:
+            [x_train, x_validation, y_train, y_validation] = DataProcessor.ProcessTrainData(
+                args.load_trainset, 60, 108, isGray=True, isCombined=True, fromPics=False)
+        #   load no head pictures from DroNet and recorded by me (Hanna) 
+        if args.load_trainpics_nohead is not None:
+            [x_train_nohead, x_validation_nohead, y_train_nohead, y_validation_nohead] = DataProcessor.ProcessTrainData(
+                None, 60, 108, isGray=True, isCombined=True, fromPics=True, picsPath=args.load_trainpics_nohead, head=False)
+            x_train = HelperConcat2(x_train, x_train_nohead)
+            y_train = HelperConcat2(y_train, y_train_nohead)
+            x_validation = HelperConcat2(x_validation, x_validation_nohead)
+            y_validation = HelperConcat2(y_validation, y_validation_nohead)
+        #   load head pictures recorded by me (Hanna)
+        if args.load_trainpics_head is not None: 
+            [x_train_head_pics, x_validation_head_pics, y_train_head_pics, y_validation_head_pics] = DataProcessor.ProcessTrainData(
+                None, 60, 108, isGray=True, isCombined=True, fromPics=True, picsPath=args.load_trainpics_head, head=True)
+            x_train = HelperConcat2(x_train, x_train_head_pics)
+            y_train = HelperConcat2(y_train, y_train_head_pics)
+            x_validation = HelperConcat2(x_validation, x_validation_head_pics)
+            y_validation = HelperConcat2(y_validation, y_validation_head_pics)
+        #   load head/no head pictures from caltech pedestrian dataset (preprocessed in caltechReader.py)
+        if args.load_traincaltech is not None:
+            [x_train_caltech, x_validation_caltech, y_train_caltech, y_validation_caltech] = DataProcessor.ProcessTrainData(
+                args.load_traincaltech, 60, 108, isGray=True, isCombined=True, fromCaltech=True)
+            x_train = HelperConcat2(x_train, x_train_caltech)
+            y_train = HelperConcat2(y_train, y_train_caltech)
+            x_validation = HelperConcat2(x_validation, x_validation_caltech)
+            y_validation = HelperConcat2(y_validation, y_validation_caltech)
+        # load test set
+        #   load head pose labeled data ("darios dataset")
+        if args.load_testset is not None:
+            [x_test, y_test] = DataProcessor.ProcessTestData(args.load_testset, 60, 108, isGray=True, isCombined=True, fromPics=False)
+        #   load no head pictures from DroNet and recorded by me (Hanna) 
+        if args.load_testpics is not None:
+            [x_test_nohead, y_test_nohead] = DataProcessor.ProcessTestData(
+                args.load_testset, 60, 108, isGray=True, isCombined=True, fromPics=True, picsPath=args.load_testpics)
+            x_test = HelperConcat2(x_test, x_test_nohead)
+            y_test = HelperConcat2(y_test, y_test_nohead)
+        #   load head/no head pictures from caltech pedestrian dataset (preprocessed in caltechReader.py)
+        if args.load_testcaltech is not None:
+            [x_test_caltech, y_test_caltech] = DataProcessor.ProcessTestData(
+                args.load_testcaltech, 60, 108, isGray=True, isCombined=True, fromCaltech=True)
+            x_test = HelperConcat2(x_test, x_test_caltech)
+            y_test = HelperConcat2(y_test, y_test_caltech)
+        debug = False
+        if debug:
+            x_test = np.concatenate((10*np.ones(np.shape(x_test)), x_test)).astype(np.float32)
+            y_test = np.concatenate((np.zeros(np.shape(y_test)), y_test)).astype(np.float32)
+
+    # concatenate train/validation sets
+    '''if args.load_traincaltech is not None:
+        x_train = np.concatenate((x_train_head, x_train_head_pics, x_train_nohead, x_train_caltech))
+        y_train = np.concatenate((y_train_head, y_train_head_pics, y_train_nohead, y_train_caltech)).astype(np.float32)
+        x_validation = np.concatenate((x_validation_head, x_validation_head_pics, x_validation_nohead, x_validation_caltech))
+        y_validation = np.concatenate((y_validation_head, y_validation_head_pics, y_validation_nohead, y_validation_caltech)).astype(np.float32)
+    else:
+        x_train = np.concatenate((x_train_head, x_train_head_pics, x_train_nohead))
+        y_train = np.concatenate((y_train_head, y_train_head_pics, y_train_nohead)).astype(np.float32)
+        x_validation = np.concatenate((x_validation_head, x_validation_head_pics, x_validation_nohead))
+        y_validation = np.concatenate((y_validation_head, y_validation_head_pics, y_validation_nohead)).astype(np.float32)
+        
+    # concatenate test sets (try/except just for debug/test reasons)
+    if args.load_testcaltech is not None:
+        x_test = np.concatenate((x_test_head, x_test_nohead, x_test_caltech))
+        y_test = np.concatenate((y_test_head, y_test_nohead, y_test_caltech)).astype(np.float32)
+    else:
+        try:
+            x_test = np.concatenate((x_test_head, x_test_nohead))
+            y_test = np.concatenate((y_test_head, y_test_nohead)).astype(np.float32)
+        except:
+            # just for testing that plain/random images are recognized as no-head
+            #x_test = np.concatenate((10*np.ones(np.shape(x_test_nohead)), x_test_nohead)).astype(np.float32)
+            #y_test = np.concatenate((np.zeros(np.shape(y_test_nohead)), y_test_nohead)).astype(np.float32)
+            x_test = x_test_nohead.astype(np.float32)
+            y_test = y_test_nohead.astype(np.float32)'''
 
     training_set = Dataset(x_train, y_train, True, isClassifier=False) #False because not only classifier FIXME
     validation_set = Dataset(x_validation, y_validation, isClassifier=False)
