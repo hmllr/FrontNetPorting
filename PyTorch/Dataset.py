@@ -46,7 +46,7 @@ class Dataset(data.Dataset):
       lo = np.random.uniform(0, 0.3)
       hi = min(1.0, lo + dr)
       # maps all values in [0, 255*lo] to 0, the ones in [255*hi,255] to 255 
-      # and interpolates the ones in between to stretch over [0,255
+      # and interpolates the ones in between to stretch over [0,255]
       X = np.interp(X/255.0, [0, lo, hi, 1], [0, 0, 1, 1])
       X = 255 * X
       X = np.reshape(X, (1, h, w))
@@ -71,6 +71,8 @@ class Dataset(data.Dataset):
                 if self.isClassifier == False:
                   y[1] = -y[1]  # Y
                   y[3] = -y[3]  # Relative YAW
+                  #cv2.imshow("flipped", np.reshape(X.numpy().astype("uint8"),(60,108)))
+                  #cv2.waitKey(0)
 
             if X.shape[0] == 1:
                # if np.random.choice([True, False]):

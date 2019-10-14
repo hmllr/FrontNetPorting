@@ -90,7 +90,8 @@ def Parse(parser):
 def HelperConcat2(base, extend):
     try:
         return np.concatenate((base, extend)).astype(np.float32)
-    except:
+    except Exception as e:
+        print(e)
         return extend.astype(np.float32)
 
 def LoadData(args):
@@ -102,6 +103,7 @@ def LoadData(args):
         if args.load_trainset is not None:
             [x_train, x_validation, y_train, y_validation] = DataProcessor.ProcessTrainData(
                 args.load_trainset, 60, 108, isGray=True, isCombined=True, fromPics=False)
+            print("train shape", np.shape(x_train))
         #   load no head pictures from DroNet and recorded by me (Hanna) 
         if args.load_trainpics_nohead is not None:
             [x_train_nohead, x_validation_nohead, y_train_nohead, y_validation_nohead] = DataProcessor.ProcessTrainData(
@@ -110,6 +112,7 @@ def LoadData(args):
             y_train = HelperConcat2(y_train, y_train_nohead)
             x_validation = HelperConcat2(x_validation, x_validation_nohead)
             y_validation = HelperConcat2(y_validation, y_validation_nohead)
+            print("train shape", np.shape(x_train))
         #   load head pictures recorded by me (Hanna)
         if args.load_trainpics_head is not None: 
             [x_train_head_pics, x_validation_head_pics, y_train_head_pics, y_validation_head_pics] = DataProcessor.ProcessTrainData(
@@ -118,6 +121,7 @@ def LoadData(args):
             y_train = HelperConcat2(y_train, y_train_head_pics)
             x_validation = HelperConcat2(x_validation, x_validation_head_pics)
             y_validation = HelperConcat2(y_validation, y_validation_head_pics)
+            print("train shape", np.shape(x_train))
         #   load head/no head pictures from caltech pedestrian dataset (preprocessed in caltechReader.py)
         if args.load_traincaltech is not None:
             [x_train_caltech, x_validation_caltech, y_train_caltech, y_validation_caltech] = DataProcessor.ProcessTrainData(
@@ -152,6 +156,7 @@ def LoadData(args):
         if debug:
             x_test = np.concatenate((10*np.ones(np.shape(x_test)), x_test)).astype(np.float32)
             y_test = np.concatenate((np.zeros(np.shape(y_test)), y_test)).astype(np.float32)
+        print("train shape", np.shape(x_train))
 
     # concatenate train/validation sets
     '''if args.load_traincaltech is not None:

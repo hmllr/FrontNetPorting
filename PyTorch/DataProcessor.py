@@ -163,7 +163,7 @@ class DataProcessor:
             x_train = np.reshape(x_train, (-1, image_height, image_width, 1))
             x_train = np.swapaxes(x_train, 1, 3)
             x_train = np.swapaxes(x_train, 2, 3)
-            logging.info('[DataProcessor] train pics number: ' + str(size))
+            logging.info('[DataProcessor] train pics number: ' + str(size) + ' head: ' + str(head))
             n_val = int(float(size) * 0.2)
             ix_val, ix_tr = np.split(np.random.permutation(size), [n_val])
             x_validation = x_train[ix_val, :]

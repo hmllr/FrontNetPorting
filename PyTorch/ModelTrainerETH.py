@@ -177,7 +177,7 @@ class ModelTrainer:
             batch_targets = batch_targets.to(self.device)
             batch_samples = batch_samples.to(self.device)
             outputs = self.model(batch_samples)
-            
+            self.initConfusionMatrix()
             if self.model.isCombined:
                 # we either only want to count the pose loss if the image has a head - or we want to teach it that no head is 50m away in the center
                 NoHeadNoPoseLoss = True
@@ -194,6 +194,7 @@ class ModelTrainer:
                     loss_phi = self.criterion(outputs[3][:], (batch_targets[:, 3]).view(-1, 1))
                 loss_class = self.criterion_class(outputs[4], (batch_targets[:, 4]).view(-1, 1))
                 loss = loss_x + loss_y + loss_z + loss_phi + self.classifierLossFactor*loss_class
+                self.updateConfusionMatrix(outputs[4], (batch_targets[:, 4]).view(-1, 1))
             elif self.model.isClassifier:
                 loss = self.criterion_class(outputs.reshape(-1), batch_targets.float().reshape(-1))
             else:
@@ -218,6 +219,7 @@ class ModelTrainer:
                 if (i + 1) % 100 == 0:
                     logging.info("[ModelTrainer] Step [{}]: Average train loss {}, {}, {}, {}, {}".format(i+1, train_loss_x.value, train_loss_y.value, train_loss_z.value,
                                                                train_loss_phi.value, train_loss_class.value))
+                    self.printConfusionMatrix()
                 i += 1
             
             elif self.model.isClassifier:
@@ -398,6 +400,7 @@ class ModelTrainer:
 
                 gt_labels = torch.tensor(gt_labels, dtype=torch.float32)
                 gt_labels = gt_labels[:,:5]
+                #print(y_pred)
                 y_pred = torch.tensor(y_pred, dtype=torch.float32)
                 MSE, MAE, r_score = metrics.Update(y_pred, gt_labels,
                                                    [train_loss_x, train_loss_y, train_loss_z, train_loss_phi, train_loss_class],
