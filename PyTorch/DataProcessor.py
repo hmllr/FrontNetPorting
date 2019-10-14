@@ -220,7 +220,7 @@ class DataProcessor:
         return [np.asarray(x_train), x_validation, y_train, y_validation]
 
     @staticmethod
-    def ProcessTestData(testPath, image_height, image_width, isGray = False, isExtended=False, isClassifier=False, fromPics=False, picsPath=None, isCombined=False, fromCaltech=False):
+    def ProcessTestData(testPath, image_height, image_width, isGray = False, isExtended=False, isClassifier=False, fromPics=False, picsPath=None, isCombined=False, fromCaltech=False, head=True):
         """Reads the .pickle file and converts it into a format suitable fot testing
 
             Parameters
@@ -265,6 +265,7 @@ class DataProcessor:
 
         elif fromPics == False:
             noPose = True
+            head = True
             test_set = pd.read_pickle(testPath).values
             #test_set = test_set[0:500]
             logging.info('[DataProcessor] test shape: ' + str(test_set.shape))
@@ -326,7 +327,10 @@ class DataProcessor:
             # put ones/zeros for classifier result to end of pose gt (if no head, no pose)
             if fromPics == True:
                 #y_test = np.zeros((len(x_test),5)).astype(np.float32)
-                y_test = np.concatenate((np.array((0,0,0,0))*np.ones((len(x_test),4)),np.reshape(np.zeros(len(x_test)),(len(x_test),-1))), axis=1).astype(np.float32)
+                if head:
+                    y_test = np.concatenate((np.array((0,0,0,0))*np.ones((len(x_test),4)),np.reshape(np.ones(len(x_test)),(len(x_test),-1))), axis=1).astype(np.float32)
+                else:
+                    y_test = np.concatenate((np.array((0,0,0,0))*np.ones((len(x_test),4)),np.reshape(np.zeros(len(x_test)),(len(x_test),-1))), axis=1).astype(np.float32)
             elif fromCaltech:
                 #FIXME maybe choose a different fake gt to plot nicely. Concat head/no head labels at the end
                 y_test = np.concatenate((np.array((0,0,0,0))*np.ones((len(x_test),4)) , np.reshape(y_test_headlabels,(len(x_test),-1))), axis=1).astype(np.float32)
@@ -339,7 +343,7 @@ class DataProcessor:
                 # add label for considering pose loss
                y_test = np.concatenate((y_test , np.reshape(np.zeros(len(x_test)),(len(x_test),-1))), axis=1).astype(np.float32)
         elif isClassifier == True:
-            if fromPics == True:
+            if head == True:
                 y_test = np.zeros(len(x_test))
             else:
                 y_test = np.ones(len(x_test))

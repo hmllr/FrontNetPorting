@@ -73,8 +73,10 @@ def Parse(parser):
                         help='for loading no head train pictures')
     parser.add_argument('--load-trainpics-head', default=None, type=str,
                         help='for loading head train pictures')
-    parser.add_argument('--load-testpics', default=None, type=str,
-                        help='for loading test pictures')
+    parser.add_argument('--load-testpics-head', default=None, type=str,
+                        help='for loading head test pictures')
+    parser.add_argument('--load-testpics-nohead', default=None, type=str,
+                        help='for loading no head test pictures')
     parser.add_argument('--singlepic', default=None, type=int,
                         help='for testing single picture')
     parser.add_argument('--load-traincaltech', default=None, type=str,
@@ -128,10 +130,16 @@ def LoadData(args):
         #   load head pose labeled data ("darios dataset")
         if args.load_testset is not None:
             [x_test, y_test] = DataProcessor.ProcessTestData(args.load_testset, 60, 108, isGray=True, isCombined=True, fromPics=False)
-        #   load no head pictures from DroNet and recorded by me (Hanna) 
-        if args.load_testpics is not None:
+        #   load head pictures from Hollywood and recorded by me (Hanna) 
+        if args.load_testpics_head is not None:
+            [x_test_head, y_test_head] = DataProcessor.ProcessTestData(
+                args.load_testset, 60, 108, isGray=True, isCombined=True, fromPics=True, picsPath=args.load_testpics_head, head=True)
+            x_test = HelperConcat2(x_test, x_test_head)
+            y_test = HelperConcat2(y_test, y_test_head)
+        #   load no head test pictures from Hollywood and recorded by me (Hanna) 
+        if args.load_testpics_nohead is not None:
             [x_test_nohead, y_test_nohead] = DataProcessor.ProcessTestData(
-                args.load_testset, 60, 108, isGray=True, isCombined=True, fromPics=True, picsPath=args.load_testpics)
+                args.load_testset, 60, 108, isGray=True, isCombined=True, fromPics=True, picsPath=args.load_testpics_nohead, head=False)
             x_test = HelperConcat2(x_test, x_test_nohead)
             y_test = HelperConcat2(y_test, y_test_nohead)
         #   load head/no head pictures from caltech pedestrian dataset (preprocessed in caltechReader.py)
