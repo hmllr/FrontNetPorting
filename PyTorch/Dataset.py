@@ -54,6 +54,23 @@ class Dataset(data.Dataset):
 
       return X
 
+  '''def brightenDR(self, X):
+      X = X.cpu().numpy()
+      h, w = X.shape[1:3]
+      X = np.reshape(X, (h, w)).astype("uint8")
+      # dynamic range augmentation
+      dr = 0.3  # dynamic range
+      lo = 0
+      hi = min(1.0, lo + dr)
+      # maps all values in [0, 255*lo] to 0, the ones in [255*hi,255] to 255 
+      # and interpolates the ones in between to stretch over [0,255]
+      X = np.interp(X/255.0, [0, lo, hi, 1], [0, 0, 1, 1])
+      X = 255 * X
+      X = np.reshape(X, (1, h, w))
+      X = torch.from_numpy(X).float().round()
+
+      return X'''
+
 
   def __getitem__(self, index):
         'Generates one sample of data'
@@ -77,6 +94,8 @@ class Dataset(data.Dataset):
             if X.shape[0] == 1:
                # if np.random.choice([True, False]):
                 #    X = self.augmentGamma(X)
-                if np.random.choice([True, False]):
+                if np.random.choice([True, False]):#,p=[0.8,0.2]):
                     X = self.augmentDR(X)
+        '''else:
+          X = self.brightenDR(X)'''
         return X, y

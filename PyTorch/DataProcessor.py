@@ -141,7 +141,27 @@ class DataProcessor:
                         X = cv2.imread(root +'/'+ file, 0)
                         #cv2.imshow('train' + str(size),X.astype("uint8"))
                         #cv2.waitKey(0)
-                        X = np.reshape(X, (244, 324))
+                        try:
+                            X = np.reshape(X, (244, 324))
+                            X_to_append = X[np.random.randint(0,5):np.random.randint(209,244),np.random.randint(0,20):np.random.randint(304,324)]
+                            if head:
+                                for i in range(0,30):
+                                    X_to_append = cv2.resize(X_to_append, (config.input_width, config.input_height), cv2.INTER_AREA)
+                                    X_to_append = X_to_append.astype("uint8")
+                                    x_train.append(X_to_append)
+                                    size+=1
+                                    X_to_append = X[np.random.randint(0,1+int(i/3)):np.random.randint(243-i,244),np.random.randint(0,1+i):np.random.randint(323-i,324)]
+                            else:
+                                for i in range(0,3):
+                                    X_to_append = cv2.resize(X_to_append, (config.input_width, config.input_height), cv2.INTER_AREA)
+                                    X_to_append = X_to_append.astype("uint8")
+                                    x_train.append(X_to_append)
+                                    size+=1
+                                    X_to_append = X[np.random.randint(0,1+3*i):np.random.randint(243-3*i,244),np.random.randint(0,1+6*i):np.random.randint(323-6*i,324)]
+                        
+                        except ValueError as e:
+                            #print(e)
+                            X = np.reshape(X, (config.input_height, config.input_width))
                         #cv2.imshow('train' + str(size),X.astype("uint8"))
                         #cv2.waitKey(0)
                         X = cv2.resize(X, (config.input_width, config.input_height), cv2.INTER_AREA)
@@ -154,11 +174,12 @@ class DataProcessor:
                         #X = np.swapaxes(X, 2, 3)
                         x_train.append(X)
                         size+=1
-            num_randimg = 1000
-            for x in range(1,num_randimg):
-                x_train.append(np.random.randint(max(20,255*x/num_randimg),size=np.shape(X)).astype("uint8"))
-                x_train.append(np.random.randint(1+255.*x/num_randimg)*np.ones(np.shape(X)).astype("uint8"))
-            size += 2*num_randimg - 2
+            # Add random images for no head learning - ATTENTION make sure it is labeled as no head!
+            #num_randimg = 1000
+            #for x in range(1,num_randimg):
+            #    x_train.append(np.random.randint(max(20,255*x/num_randimg),size=np.shape(X)).astype("uint8"))
+            #    x_train.append(np.random.randint(1+255.*x/num_randimg)*np.ones(np.shape(X)).astype("uint8"))
+            #size += 2*num_randimg - 2
             x_train = np.asarray(x_train)
             x_train = np.reshape(x_train, (-1, image_height, image_width, 1))
             x_train = np.swapaxes(x_train, 1, 3)
@@ -267,13 +288,23 @@ class DataProcessor:
             noPose = True
             head = True
             test_set = pd.read_pickle(testPath).values
-            #test_set = test_set[0:500]
+            #test_set = test_set[0:50]
             logging.info('[DataProcessor] test shape: ' + str(test_set.shape))
 
             x_test = test_set[:, 0]
             x_test = np.vstack(x_test[:]).astype(np.float32)
+            x_test_rand = []
             if isGray == True:
                 x_test = np.reshape(x_test, (-1, image_height, image_width, 1))
+                # FIXME just here to see what happens if we crop the image a bit
+                CropTest = False
+                if CropTest:
+                    for X in x_test:
+                        X = np.reshape(X,(image_height, image_width))
+                        X = cv2.resize(X[random.randint(0,10):random.randint(50,60), random.randint(0,15):random.randint(93,108)], (config.input_width, config.input_height), cv2.INTER_AREA)
+                        x_test_rand.append(X)
+                    x_test = x_test_rand
+                    x_test = np.reshape(x_test, (-1, image_height, image_width, 1))
             else:
                 x_test = np.reshape(x_test, (-1, image_height, image_width, 3))
             x_test = np.swapaxes(x_test, 1, 3)
@@ -303,7 +334,11 @@ class DataProcessor:
                     if file.endswith('.pgm'):
                         #print(file)
                         X = cv2.imread(root +'/'+ file, 0)
-                        X = np.reshape(X, (244, 324))
+                        try:
+                            X = np.reshape(X, (244, 324))
+                            #X = X[0:200,20:300]
+                        except ValueError:
+                            X = np.reshape(X, (config.input_height, config.input_width))
                         #cv2.imshow('test' + str(size),X.astype("uint8"))
                         #cv2.waitKey(0)
                         X = cv2.resize(X, (config.input_width, config.input_height), cv2.INTER_AREA)
