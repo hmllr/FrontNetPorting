@@ -14,8 +14,8 @@ from ImageEffects import ImageEffects
 sys.path.append("../")
 import config
 
-min_height_pedestrian = 200
-min_width_pedestrian = 50
+min_height_pedestrian = 300
+min_width_pedestrian = 60
 
 # FIXME duplicate, in DatasetCreator as well
 def SaveToDataFrame(x_dataset, y_dataset, datasetName):
@@ -116,9 +116,10 @@ for dataset in names:
                             elif skip:
                                 countskip += 1
                             else:
-                                y_dataset.append(0)
                                 countnohead += 1
-                                x_dataset.append(cv_image)
+                                if countnohead%10 == 0:
+                                    y_dataset.append(0)
+                                    x_dataset.append(cv_image)
                 #except Exception as e:
                 #    print(e)
                 #    break # arrived at set/folder number higher than we have folders
