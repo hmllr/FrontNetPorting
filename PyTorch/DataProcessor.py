@@ -143,21 +143,23 @@ class DataProcessor:
                         #cv2.waitKey(0)
                         try:
                             X = np.reshape(X, (244, 324))
-                            X_to_append = X[np.random.randint(0,5):np.random.randint(209,244),np.random.randint(0,20):np.random.randint(304,324)]
-                            if head:
-                                for i in range(0,30):
-                                    X_to_append = cv2.resize(X_to_append, (config.input_width, config.input_height), cv2.INTER_AREA)
-                                    X_to_append = X_to_append.astype("uint8")
-                                    x_train.append(X_to_append)
-                                    size+=1
-                                    X_to_append = X[np.random.randint(0,1+int(i/3)):np.random.randint(243-i,244),np.random.randint(0,1+i):np.random.randint(323-i,324)]
-                            else:
-                                for i in range(0,3):
-                                    X_to_append = cv2.resize(X_to_append, (config.input_width, config.input_height), cv2.INTER_AREA)
-                                    X_to_append = X_to_append.astype("uint8")
-                                    x_train.append(X_to_append)
-                                    size+=1
-                                    X_to_append = X[np.random.randint(0,1+3*i):np.random.randint(243-3*i,244),np.random.randint(0,1+6*i):np.random.randint(323-6*i,324)]
+                            augment = True
+                            if augment:
+                                X_to_append = X[np.random.randint(0,5):np.random.randint(209,244),np.random.randint(0,20):np.random.randint(304,324)]
+                                if head:
+                                    for i in range(0,30):
+                                        X_to_append = cv2.resize(X_to_append, (config.input_width, config.input_height), cv2.INTER_AREA)
+                                        X_to_append = X_to_append.astype("uint8")
+                                        x_train.append(X_to_append)
+                                        size+=1
+                                        X_to_append = X[np.random.randint(0,1+int(i/3)):np.random.randint(243-i,244),np.random.randint(0,1+i):np.random.randint(323-i,324)]
+                                else:
+                                    for i in range(0,3):
+                                        X_to_append = cv2.resize(X_to_append, (config.input_width, config.input_height), cv2.INTER_AREA)
+                                        X_to_append = X_to_append.astype("uint8")
+                                        x_train.append(X_to_append)
+                                        size+=1
+                                        X_to_append = X[np.random.randint(0,1+3*i):np.random.randint(243-3*i,244),np.random.randint(0,1+6*i):np.random.randint(323-6*i,324)]
                         
                         except ValueError as e:
                             #print(e)
