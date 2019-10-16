@@ -80,7 +80,7 @@ class DatasetCreator:
             isCompressed = True
         else:
             isCompressed = False
-        print(isCompressed)
+        print(isCompressed, self.camera_topic)
 
 
         bridge = CvBridge()
@@ -402,6 +402,9 @@ class DatasetCreator:
             print("dataset ready x:{} y:{}".format(len(x_dataset), len(y_dataset)))
             df = pd.DataFrame(data={'x': x_dataset, 'y': y_dataset})
         else:
+            if len(y_dataset) == 1:
+                print("dataset ready x:{} y:{} ".format(len(x_dataset), len(y_dataset[0])))
+                df = pd.DataFrame(data={'x': x_dataset, 'y': y_dataset[0]})
             if len(y_dataset) == 2:
                 print("dataset ready x:{} y:{} z:{}".format(len(x_dataset), len(y_dataset[0]), len(y_dataset[1])))
                 df = pd.DataFrame(data={'x': x_dataset, 'y': y_dataset[0], 'z':y_dataset[1]})
@@ -584,8 +587,9 @@ class DatasetCreator:
             topic_stamps = self.ts.ExtractStampsFromRosbag(topic)
             other_stamps_list.append(topic_stamps)
             if (len(topic_stamps) < len(camera_stamps)):
+                print(len(topic_stamps) , len(camera_stamps))
                 print("Error:recording data corrupted. not enough MoCap stamps.") 
-                return
+                #return
         print("unpacked stamps")
 
         other_stamps_list.append(drone_stamps)
@@ -629,49 +633,7 @@ class DatasetCreator:
                         cv_image = bridge.compressed_imgmsg_to_cv2(camera_msgs[i])
                     else:
                         cv_image = bridge.imgmsg_to_cv2(camera_msgs[i])
-                    # image transform
-                    if(imgshow == True):
-                        cv2.imshow('image',cv_image)
-                        cv2.waitKey(0)
-                        cv2.imwrite('images/bebop/bebop_image.pgm', cv_image)
-                    cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-                    if(imgshow == True):
-                        cv2.imshow('imageGRAY',cv_image)
-                        cv2.waitKey(0)
-                        cv2.imwrite('images/bebop/grey_image.pgm', cv_image)
-                    cv_image = cv2.LUT(cv_image, gammaLUT)
-                    if(imgshow == True):
-                        cv2.imshow('imageLUT',cv_image)
-                        cv2.waitKey(0)
-                        cv2.imwrite('images/bebop/LUT_image.pgm', cv_image)
-                    cv_image = cv2.GaussianBlur(cv_image,(5,5),0)
-                    if(imgshow == True):
-                        cv2.imshow('imageGAUSS',cv_image)
-                        cv2.waitKey(0)
-                        cv2.imwrite('images/bebop/gauss_image.pgm', cv_image)
-                    cv_image = cv2.resize(cv_image, (config.himax_width, config.himax_height), cv2.INTER_AREA)
-                    if(imgshow == True):
-                        cv2.imshow('imageRES',cv_image)
-                        cv2.waitKey(0)
-                        cv2.imwrite('images/bebop/res1_image.pgm', cv_image)
-                    # take rectangular out of square mask because himax camera is a square, so the effect we want to reproduce is as well
-                    cv_image = cv_image *  vignetteMask[40:284, 0:324]
-                    if(imgshow == True):
-                        cv2.imshow('VIGNETTE',vignetteMask)
-                        cv2.waitKey(0)
-                        cv2.imwrite('images/bebop/vignette_mask.pgm', vignetteMask)
-                    # there is no use in keeping floats as the himax values are ints as well
-                    cv_image = cv2.convertScaleAbs(cv_image)
-                    if(imgshow == True):
-                        cv2.imshow('imageVIGNETTE',cv_image)
-                        cv2.waitKey(0)
-                        cv2.imwrite('images/bebop/vignette_image.pgm', cv_image)
-                    cv_image = cv2.resize(cv_image, (config.input_width, config.input_height), cv2.INTER_NEAREST)
-                    x_dataset.append(cv_image)  
-                    if(imgshow == True):
-                        cv2.imshow('imageRES',cv_image)
-                        cv2.waitKey(0)
-                        cv2.imwrite('images/bebop/res2_image.pgm', cv_image)
+
                     camera_id = sync_camera_ids[chunk * chunk_size + i]
                     drone_id = sync_drone_ids[chunk * chunk_size + i]
 
@@ -680,6 +642,86 @@ class DatasetCreator:
                         topic_id = sync_other_ids[id][chunk * chunk_size + i]
                         x, y, z, yaw = relative_pose(topic_msgs[topic_id], drone_msgs[drone_id])
                         y_dataset[id].append([x, y, z, yaw])
+
+                    # image transform
+                    if(imgshow == True):
+                        cv2.imshow('image',cv_image)
+                        cv2.waitKey(0)
+                        #cv2.imwrite('images/bebop/bebop_image.pgm', cv_image)
+                    cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+                    if(imgshow == True):
+                        cv2.imshow('imageGRAY',cv_image)
+                        cv2.waitKey(0)
+                        #cv2.imwrite('images/bebop/grey_image.pgm', cv_image)
+                    cv_image = cv2.LUT(cv_image, gammaLUT)
+                    if(imgshow == True):
+                        cv2.imshow('imageLUT',cv_image)
+                        cv2.waitKey(0)
+                        #cv2.imwrite('images/bebop/LUT_image.pgm', cv_image)
+                    cv_image = cv2.GaussianBlur(cv_image,(5,5),0)
+                    if(imgshow == True):
+                        cv2.imshow('imageGAUSS',cv_image)
+                        cv2.waitKey(0)
+                        #cv2.imwrite('images/bebop/gauss_image.pgm', cv_image) 
+                    generateHeadSamples = True
+                    if generateHeadSamples:
+                        print(x,y,z,yaw)
+                        height, width = np.shape(cv_image)
+                        y_pos = int(-y/x*width/2 + width/2)
+                        z_pos = int(-z/x*height/2 + height/2)
+                        head = True
+                        if head:
+                            y_left = min(width - 1,max(0,y_pos-config.himax_width*3/4))
+                            y_right = max(y_left + 1,min(y_pos+config.himax_width*3/4, width))
+                            z_up = min(height - 1,max(0,z_pos-config.himax_height*3/4))
+                            z_down = max(z_up + 1,min(z_pos+config.himax_height*3/4,height))
+                        else:
+                            if y_pos < width/2:
+                                y_left = width - config.himax_width
+                                y_right = width
+                            else:
+                                y_left = 0
+                                y_right = config.himax_width
+                            if z_pos < height/2:
+                                z_up = height - config.himax_height
+                                z_down = height
+                            else:
+                                z_up = 0
+                                z_down = config.himax_height
+                        print(y_left, y_right, z_up, z_down, np.shape(cv_image))
+                        cv_image = cv_image[z_up:z_down, y_left:y_right]
+                        if(imgshow == True):
+                            cv2.imshow('imageCROP',cv_image)
+                            cv2.waitKey(0)
+                            #cv2.imwrite('images/bebop/crop_image.pgm', cv_image)    
+                    cv_image = cv2.resize(cv_image, (config.himax_width, config.himax_height), cv2.INTER_AREA)
+                    if(imgshow == True):
+                        cv2.imshow('imageRES',cv_image)
+                        cv2.waitKey(0)
+                        #cv2.imwrite('images/bebop/res1_image.pgm', cv_image)
+                    # take rectangular out of square mask because himax camera is a square, so the effect we want to reproduce is as well
+                    cv_image = cv_image *  vignetteMask[40:284, 0:324]
+                    if(imgshow == True):
+                        cv2.imshow('VIGNETTE',vignetteMask)
+                        cv2.waitKey(0)
+                        #cv2.imwrite('images/bebop/vignette_mask.pgm', vignetteMask)
+                    # there is no use in keeping floats as the himax values are ints as well
+                    cv_image = cv2.convertScaleAbs(cv_image)
+                    if(imgshow == True):
+                        cv2.imshow('imageVIGNETTE',cv_image)
+                        cv2.waitKey(0)
+                        #cv2.imwrite('images/bebop/vignette_image.pgm', cv_image)
+                    cv_image = cv2.resize(cv_image, (config.input_width, config.input_height), cv2.INTER_NEAREST)
+                    x_dataset.append(cv_image)  
+                    if(imgshow == True):
+                        cv2.imshow('imageRES',cv_image)
+                        cv2.waitKey(0)
+                        #cv2.imwrite('images/bebop/res2_image.pgm', cv_image)
+                    if generateHeadSamples:
+                        if head:
+                            cv2.imwrite('images/bebop/head' + str(chunk) +'_'+ str(i)+ '.pgm', cv_image)
+                        else:
+                            cv2.imwrite('images/bebop/nohead' + str(chunk) +'_'+ str(i)+ '.pgm', cv_image)
         
                     #print("opti_id={}/{}, drone_id={}/{}, bebop_id={}".format(optitrack_id, len(optitrack_msgs), drone_id, len(drone_msgs), bebop_id))
 
