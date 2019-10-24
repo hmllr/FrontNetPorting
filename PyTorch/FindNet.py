@@ -20,7 +20,7 @@ class FindNet(nn.Module):
         self.isClassifier = isClassifier
         self.isCombined = isCombined
         if isGray ==True:
-            self.name = "FindNetGray"
+            self.name = "FindNetGray_classifier_2res_alldario_himaxaugmented"
         else:
             self.name = "FindNetRGB"
         self.inplanes = 32
@@ -52,16 +52,18 @@ class FindNet(nn.Module):
         self.layer3 = PreActBlockSimple(64, 128, stride=2)
 
         self.avg_pool = nn.AvgPool2d(kernel_size=(4, 7), stride=(1, 1))
-        self.fc1 = nn.Linear(128 * block.expansion, 128)
-        self.fc2 = nn.Linear(128, 64)
+        #self.fc1 = nn.Linear(128 * block.expansion, 128)
+        #self.fc2 = nn.Linear(128, 64)
 
         self.fc_x = nn.Linear(64, 1)
         self.fc_y = nn.Linear(64, 1)
         self.fc_z = nn.Linear(64, 1)
         self.fc_phi = nn.Linear(64, 1)
 
-        self.fc_class = nn.Linear(64, 1)
+        self.fc_class = nn.Linear(128, 1)
         self.sig = nn.Sigmoid()
+
+        self.dropout = nn.Dropout()
 
 
     def forward(self, x):
@@ -69,23 +71,26 @@ class FindNet(nn.Module):
         out = self.bn32_1(out)
         out = self.relu1(out)
         out = self.maxpool(out)
-        out = self.layer1(out)
-        out = self.bn32_2(out)
-        out = self.relu2(out)
+        #out = self.layer1(out)
+        #out = self.bn32_2(out)
+        #out = self.relu2(out)
+        #out = self.dropout(out)
         out = self.layer2(out)
         out = self.bn64(out)
         out = self.relu3(out)
+        out = self.dropout(out)
         out = self.layer3(out)
         out = self.avg_pool(out)
         out = out.view(out.size(0), -1)
-        out = self.fc1(out)
-        out = self.relu4(out)
-        out = self.fc2(out)
-        out = self.relu5(out)
-        x = self.fc_x(out)
-        y = self.fc_y(out)
-        z = self.fc_z(out)
-        phi = self.fc_phi(out)
+        #out = self.fc1(out)
+        #out = self.relu4(out)
+        #out = self.fc2(out)
+        #out = self.relu5(out)
+        #x = self.fc_x(out)
+        #y = self.fc_y(out)
+        #z = self.fc_z(out)
+        #phi = self.fc_phi(out)
+        out = self.dropout(out)
         head = self.fc_class(out)
         if self.isCombined:
             return [x, y, z, phi, self.sig(head)]
