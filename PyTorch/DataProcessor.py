@@ -114,12 +114,23 @@ class DataProcessor:
             #sel_idx = random.sample(range(0, shape_), k=50000)
             x_train = x_train[sel_idx, :]
             y_train = y_train[sel_idx, :]
+            #for i in range(0,400):
+            #    print(y_train[i*100])
+            #    img = np.reshape(x_train[i*100],(image_height,image_width))
+            #    cv2.imshow('train',img.astype("uint8"))
+            #    cv2.waitKey(0)
         else:
             noPose = True
             x_train =[]
+            x_train_fix = [] # don't want to have the augmented images from the same in x_val and x_train
+            x_val_fix = []
             size = 0
+            countAugmented = 0
+            countDarioSamples = 0
             for root, dirs, files in os.walk(picsPath):
                 for file in files:
+                    isAugnmented = False
+                    isValidation = False
                     if file.endswith('.csv'):
                         pass
                         ''' Not used at the moment as shift in images and fixed are stored as pgm
@@ -142,28 +153,60 @@ class DataProcessor:
                         #cv2.imshow('train' + str(size),X.astype("uint8"))
                         #cv2.waitKey(0)
                         try:
-                            X = np.reshape(X, (244, 324))
+                            w = 324
+                            h = 244
+                            X = np.reshape(X, (h, w))
                             augment = True
-                            if augment:
-                                X_to_append = X[np.random.randint(0,5):np.random.randint(209,244),np.random.randint(0,20):np.random.randint(304,324)]
-                                if head:
-                                    for i in range(0,30):
-                                        X_to_append = cv2.resize(X_to_append, (config.input_width, config.input_height), cv2.INTER_AREA)
-                                        X_to_append = X_to_append.astype("uint8")
-                                        x_train.append(X_to_append)
-                                        size+=1
-                                        X_to_append = X[np.random.randint(0,1+int(i/3)):np.random.randint(243-i,244),np.random.randint(0,1+i):np.random.randint(323-i,324)]
+                            if augment and (not "Udacity" in root):
+                                countAugmented += 1
+                                augmentation_factor_heads = 20
+                                augmentation_factor_noheads = 30
+                                if countAugmented%5:
+                                    isAugnmented = True
+                                    X_to_append = X[np.random.randint(0,5):np.random.randint(209,244),np.random.randint(0,20):np.random.randint(304,324)]
+                                    #cv2.imshow('testrotorig',X)
+                                    #cv2.waitKey(0)
+                                    if head:
+                                        augmentation_factor = augmentation_factor_heads
+                                        for i in range(0,augmentation_factor_heads - 1):
+                                            X_to_append = cv2.resize(X_to_append, (config.input_width, config.input_height), cv2.INTER_AREA)
+                                            X_to_append = X_to_append.astype("uint8")
+                                            x_train_fix.append(X_to_append)
+                                            #size+=1
+                                            X_to_append = X[np.random.randint(0,1+i):np.random.randint(243-2*i,244),np.random.randint(0,1+2*i):np.random.randint(323-2*i,324)]
+                                    else:
+                                        augmentation_factor = augmentation_factor_noheads
+                                        for i in range(0,augmentation_factor_noheads - 1):
+                                            cut = i
+                                            X_to_append = cv2.resize(X_to_append, (config.input_width, config.input_height), cv2.INTER_AREA)
+                                            X_to_append = X_to_append.astype("uint8")
+                                            #cv2.imshow('testrot_res',X_to_append)
+                                            #cv2.waitKey(0)
+                                            x_train_fix.append(X_to_append)
+                                            #size+=1
+                                            center = (w/2,h/2)
+                                            angle = np.random.randint(0,int(i/1)+1)
+                                            if i%2:
+                                                angle = 360 - angle  
+                                            M = cv2.getRotationMatrix2D(center, angle, 1)
+                                            X_to_append = cv2.warpAffine(X, M, (w, h)) 
+                                            #cv2.imshow('testrot',X_to_append)
+                                            #cv2.waitKey(0)
+                                            X_to_append = X_to_append[np.random.randint(10+cut,11+2*cut):np.random.randint(233-2*cut,234-cut),np.random.randint(10+cut,11+2*cut):np.random.randint(313-2*cut,314-cut)]
+                                            #cv2.imshow('testrotcrop',X_to_append)
+                                            #cv2.waitKey(0)
                                 else:
-                                    for i in range(0,3):
-                                        X_to_append = cv2.resize(X_to_append, (config.input_width, config.input_height), cv2.INTER_AREA)
-                                        X_to_append = X_to_append.astype("uint8")
-                                        x_train.append(X_to_append)
-                                        size+=1
-                                        X_to_append = X[np.random.randint(0,1+3*i):np.random.randint(243-3*i,244),np.random.randint(0,1+6*i):np.random.randint(323-6*i,324)]
-                        
+                                    isValidation = True
+
                         except ValueError as e:
                             #print(e)
-                            X = np.reshape(X, (config.input_height, config.input_width))
+                            if (not "Hollywood" in root):
+                                countDarioSamples += 1
+                                #if countDarioSamples%10:
+                                #    continue
+                                X = np.reshape(X, (config.input_height, config.input_width))
+                            else:
+                                X = np.reshape(X, (config.input_height, config.input_width))
                         #cv2.imshow('train' + str(size),X.astype("uint8"))
                         #cv2.waitKey(0)
                         X = cv2.resize(X, (config.input_width, config.input_height), cv2.INTER_AREA)
@@ -174,27 +217,61 @@ class DataProcessor:
                         #X = np.reshape(X, (-1, 60,108, 1))
                         #X = np.swapaxes(X, 1, 3)
                         #X = np.swapaxes(X, 2, 3)
-                        x_train.append(X)
-                        size+=1
+                        if isAugnmented:
+                            x_train_fix.append(X)
+                        elif isValidation:
+                            x_val_fix.append(X)
+                        else:
+                            x_train.append(X)
+                            size+=1
+                            #print(size)
             # Add random images for no head learning - ATTENTION make sure it is labeled as no head!
             #num_randimg = 1000
             #for x in range(1,num_randimg):
             #    x_train.append(np.random.randint(max(20,255*x/num_randimg),size=np.shape(X)).astype("uint8"))
             #    x_train.append(np.random.randint(1+255.*x/num_randimg)*np.ones(np.shape(X)).astype("uint8"))
             #size += 2*num_randimg - 2
+            print("DarioSamples : ", countDarioSamples)
             x_train = np.asarray(x_train)
             x_train = np.reshape(x_train, (-1, image_height, image_width, 1))
             x_train = np.swapaxes(x_train, 1, 3)
             x_train = np.swapaxes(x_train, 2, 3)
-            logging.info('[DataProcessor] train pics number: ' + str(size) + ' head: ' + str(head))
+            x_train_fix = np.asarray(x_train_fix)
+            x_train_fix = np.reshape(x_train_fix, (-1, image_height, image_width, 1))
+            x_train_fix = np.swapaxes(x_train_fix, 1, 3)
+            x_train_fix = np.swapaxes(x_train_fix, 2, 3)
+            x_val_fix = np.asarray(x_val_fix)
+            x_val_fix = np.reshape(x_val_fix, (-1, image_height, image_width, 1))
+            x_val_fix = np.swapaxes(x_val_fix, 1, 3)
+            x_val_fix = np.swapaxes(x_val_fix, 2, 3)
+            print(np.shape(x_train), np.shape(x_train_fix), np.shape(x_val_fix))
+            logging.info('[DataProcessor] train pics number: ' + str(size) + ' ' + str(countAugmented) + '*' + str(augmentation_factor) + ' head: ' + str(head))
             n_val = int(float(size) * 0.2)
+            print(n_val)
             ix_val, ix_tr = np.split(np.random.permutation(size), [n_val])
             x_validation = x_train[ix_val, :]
+            #print(np.shape(x_validation), np.shape(x_val_fix), np.size(x_validation), np.size(x_train))
+            #print(np.size(x_validation) != 0)
+            #print(np.size(x_val_fix) != 0)
+            # Dirty, dirty hack - FIXME TODO remove!!!! Just don't want the only head images in the validation set right now...
+            #if np.size(x_validation) != 0 and np.size(x_val_fix) != 0:
+            #    x_validation = np.concatenate((x_validation,x_val_fix))
+            #elif np.size(x_validation) == 0:
+            #    x_validation = x_val_fix
+                #print("val shape", np.shape(x_validation))
+            x_validation = x_val_fix
             x_train = x_train[ix_tr, :]
+            #print(np.shape(x_train), np.shape(x_train_fix), np.size(x_train_fix), np.size(x_train))
+            #print(np.size(x_train) != 0)
+            #print(np.size(x_train_fix) != 0)
+            if np.size(x_train_fix) != 0 and np.size(x_train) != 0:
+                x_train = np.concatenate((x_train, x_train_fix))
+            elif np.size(x_train) == 0:
+                x_train = x_train_fix
 
             shape_ = len(x_train)
 
-            sel_idx = random.sample(range(0, shape_), k=(size-n_val))
+            sel_idx = random.sample(range(0, shape_), k=(shape_))
             #sel_idx = random.sample(range(0, shape_), k=50000)
             x_train = x_train[sel_idx, :]
 
@@ -225,12 +302,12 @@ class DataProcessor:
                y_validation = np.concatenate((y_validation , np.reshape(np.zeros(len(x_validation)),(len(x_validation),-1))), axis=1).astype(np.float32) 
 
         elif isClassifier == True:
-            if fromPics == True:
-                y_train = np.zeros(len(x_train))
-                y_validation = np.zeros(len(x_validation))
-            else:
+            if head == True:
                 y_train = np.ones(len(x_train))
                 y_validation = np.ones(len(x_validation))
+            else:
+                y_train = np.zeros(len(x_train))
+                y_validation = np.zeros(len(x_validation))
 
         if isExtended == True:
             z_train = train_set[:, 2]
@@ -381,9 +458,9 @@ class DataProcessor:
                y_test = np.concatenate((y_test , np.reshape(np.zeros(len(x_test)),(len(x_test),-1))), axis=1).astype(np.float32)
         elif isClassifier == True:
             if head == True:
-                y_test = np.zeros(len(x_test))
-            else:
                 y_test = np.ones(len(x_test))
+            else:
+                y_test = np.zeros(len(x_test))
 
 
         return [x_test, y_test]
