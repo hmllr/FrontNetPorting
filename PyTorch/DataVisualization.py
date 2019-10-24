@@ -364,7 +364,17 @@ class DataVisualization:
         plt.suptitle('Ground Truth vs Predictions')
         plt.savefig(DataVisualization.folderPath + DataVisualization.desc + 'GTvsPred.png')
 
-
+    @staticmethod
+    def PlotClassGTvsEst(gt_labels, y_pred):
+        kwargs = dict(alpha=0.5, bins=20)
+        head_indices = [i for i, x in enumerate(gt_labels) if x.round().astype(int) == 1]
+        nohead_indices = [i for i, x in enumerate(gt_labels) if x.round().astype(int) == 0]
+        plt.hist(np.array(y_pred)[nohead_indices], **kwargs, color='g', label='NoHead')
+        plt.hist(np.array(y_pred)[head_indices], **kwargs, color='b', label='Head')
+        plt.gca().set(title='Head/NoHead Predictions', xlabel='probability')
+        plt.xlim(0,1)
+        plt.legend();
+        plt.savefig(DataVisualization.folderPath + DataVisualization.desc + 'probHisto.png')
 
     @staticmethod
     def DisplayFrameAndPose(frame, gt_labels, predictions):
