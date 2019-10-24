@@ -253,6 +253,7 @@ class ModelTrainer:
         print("FP:" + str(self.FP))
         print("TN:" + str(self.TN))
         print("FN:" + str(self.FN))
+        print("Acc:" + str(float(self.TP + self.TN)/float(self.TP + self.TN + self.FP + self.FN)))
         
     def updateConfusionMatrix(self, predictions, gt):
         count = 0
@@ -294,18 +295,29 @@ class ModelTrainer:
                 batch_targets = batch_targets.to(self.device)
                 batch_samples = batch_samples.to(self.device)
                 outputs = self.model(batch_samples)
-                debug = True
+                debug = False
                 if debug:
-                    for i in range(0,len(batch_samples)):
-                        if abs(batch_targets[i,4] - outputs[4][i]) >= 0.5: 
-                            print(outputs[0][i], outputs[1][i], outputs[2][i], outputs[4][i])
-                            print(batch_samples[i])
-                            pic = np.swapaxes(batch_samples[i].numpy(), 0, 2)
-                            pic = np.swapaxes(pic, 0, 1)
-                            print(np.shape(pic))
-                            cv2.imshow("Test"+str(batchcounter) + str(i), pic.astype(np.uint8))
-                            cv2.waitKey(0)
-                    batchcounter += 1
+                    if self.model.isCombined:
+                        for i in range(0,len(batch_samples)):
+                            if abs(batch_targets[i,4] - outputs[4][i]) >= 0.5: 
+                                print(outputs[0][i], outputs[1][i], outputs[2][i], outputs[4][i])
+                                print(batch_samples[i])
+                                pic = np.swapaxes(batch_samples[i].numpy(), 0, 2)
+                                pic = np.swapaxes(pic, 0, 1)
+                                print(np.shape(pic))
+                                cv2.imshow("Test"+str(batchcounter) + str(i), pic.astype(np.uint8))
+                                cv2.waitKey(0)
+                        batchcounter += 1
+                    elif self.model.isClassifier:
+                        for i in range(0,len(batch_samples)):
+                            if abs(batch_targets[i] - outputs[i]) >= 0.5: 
+                                print(outputs[i])
+                                pic = np.swapaxes(batch_samples[i].numpy(), 0, 2)
+                                pic = np.swapaxes(pic, 0, 1)
+                                print(np.shape(pic))
+                                cv2.imshow("Test"+str(batchcounter) + str(i), pic.astype(np.uint8))
+                                cv2.waitKey(0)
+                        batchcounter += 1
 
                 if self.model.isCombined:
                     # the loss of a wrong prediction if there is no head should be neglected
@@ -549,6 +561,10 @@ class ModelTrainer:
         elif self.model.isClassifier:
             valid_loss, y_pred, gt_labels  = self.ValidateSingleEpoch(test_generator)
             logging.info('[ModelTrainer] Test loss: {}'.format(valid_loss))
+            y_pred_viz = metrics.GetPred()
+            gt_labels_viz = metrics.GetLabels()
+            DataVisualization.PlotClassGTvsEst(gt_labels, y_pred)
+            DataVisualization.DisplayPlots()
         else:
             valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
                 test_generator)
