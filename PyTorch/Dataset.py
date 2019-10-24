@@ -18,6 +18,7 @@ class Dataset(data.Dataset):
         self.train = train
         self.it = ImageTransformer()
         self.isClassifier = isClassifier
+        np.random.seed(1)
 
 
   def __len__(self):
@@ -42,8 +43,8 @@ class Dataset(data.Dataset):
       h, w = X.shape[1:3]
       X = np.reshape(X, (h, w)).astype("uint8")
       # dynamic range augmentation
-      dr = np.random.uniform(0.4, 0.8)  # dynamic range
-      lo = np.random.uniform(0, 0.3)
+      dr = np.random.uniform(0.6, 0.9)  # dynamic range
+      lo = np.random.uniform(0, 0.2)
       hi = min(1.0, lo + dr)
       # maps all values in [0, 255*lo] to 0, the ones in [255*hi,255] to 255 
       # and interpolates the ones in between to stretch over [0,255]
