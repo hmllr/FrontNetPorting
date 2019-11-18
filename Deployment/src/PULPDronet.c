@@ -46,7 +46,8 @@ static int				L3_sizes[NWEIGTHS];
 static unsigned int		L2_bias_sizes[NWEIGTHS]; 
 static int 				Norm_Factor[NWEIGTHS];
 static short int		SPIM_tx[4];
-static short int		SPIM_rx[2];
+static short int		SPIM_rx[4];
+
 
 
 unsigned int PMU_set_voltage(unsigned int Voltage, unsigned int CheckFrequencies);
@@ -192,6 +193,23 @@ static void RunPULPDronet() {
 
 /* --------------------------------- LAYER 1 -------------------------------- */
 	L2_input = L2_image;
+
+	short int * myLayer = NULL;
+	int myLayerLocation = 0;
+
+	/*myLayer = L2_input;
+	myLayerLocation = inCh[0] * inWidth[0] * inHeight[0] / 2;
+	//myLayer = myLayer + myLayerLocation;
+	printf("location in layer %d\n", myLayerLocation);
+	printf("layer values\n");
+	for (int w = 0; w < 10; ++w)
+	{
+		short int myVal = myLayer[w];
+		printf("%d ", myVal);		
+	}*/
+
+//memset(L2_bias[0], 0, L2_bias_sizes[0]);
+
 	memId_O = 0;
 	memId_W = 0;
 
@@ -221,6 +239,36 @@ static void RunPULPDronet() {
 #endif
 
 	meta_free(memId_W, L3_sizes[0]);
+
+	/*myLayer = L2_output[0];
+	printf("layer values\n");
+	for (int w = 0; w < 10; ++w)
+	{
+		short int myVal = myLayer[myLayerLocation + w];
+		printf("%f ", (float)myVal * 0.00048828125);	
+		//printf("%d ", myVal);		
+	}*/
+
+	/*short int * myWeights = L2_weights;
+	printf("weight values\n");
+	float wFactor = 0.000000476837158203125;
+	for (int w = 0; w < 10; ++w)
+	{
+		short int myVal = myWeights[w];
+		//printf("%f ", (float)myVal * wFactor);	
+		printf("%d ", myVal);	
+	}*/
+
+	/*short int * mybiases = L2_bias[0];
+	printf("bias values\n");
+	float bFactor = 0.00048828125;
+	for (int w = 0; w < 10; ++w)
+	{
+		short int myVal = mybiases[w];
+		printf("%f ", (float)myVal * bFactor);
+		printf("%d ", myVal);			
+	}*/
+
 
 
 /* -------------------- TRIGGER A NEW IMG TRANSFER ON FC -------------------- */
@@ -280,6 +328,14 @@ __rt_cluster_push_fc_event(event_capture);
 	meta_free(memId_W, L3_sizes[1]);
 	meta_free(0, outputSizesB[1]);
 
+	/*myLayer = L2_output[2];
+	printf("layer conv1\n");
+	for (int w = 0; w < 10; ++w)
+	{
+		short int myVal = myLayer[w];
+		printf("%f ", (float)myVal * 0.00048828125);	
+	}*/
+	
 
 /* --------------------------------- LAYER 3 -------------------------------- */
 	L2_input = L2_output[2];
@@ -344,6 +400,14 @@ __rt_cluster_push_fc_event(event_capture);
 #endif
 
 	meta_free(memId_W, L3_sizes[3]);
+
+	/*myLayer = L2_output[4];
+	printf("layer add1\n");
+	for (int w = 0; w < 10; ++w)
+	{
+		short int myVal = myLayer[w];
+		printf("%f, ", (float)myVal * 0.00048828125);	
+	}*/
 	
 
 /* -------------------------------- ADD RES 1 -------------------------------- */
@@ -367,7 +431,7 @@ __rt_cluster_push_fc_event(event_capture);
 
 	meta_free(0, outputSizesB[3]);
 	meta_free(0, outputSizesB[0]);
-	
+
 
 /* --------------------------------- LAYER 5 -------------------------------- */
 	L2_input = L2_output[5];
@@ -733,16 +797,16 @@ __rt_cluster_push_fc_event(event_capture);
 #endif
 
 	L2_output[18] = (short int *) meta_alloc(memId_O, outputSizesB[18]+2);
-	L2_weights = (short int *) meta_alloc(memId_W, L3_sizes[11]);
+	L2_weights = (short int *) meta_alloc(memId_W, L3_sizes[12]);
 
-	L3toL2(L3_weights[11], L2_weights, L3_sizes[11]);
+	L3toL2(L3_weights[12], L2_weights, L3_sizes[12]);
 
 #ifdef PROFILE_CL
 	perf_mem_cum_cl[18] = rt_perf_read(RT_PERF_CYCLES) - perf_start;
 	perf_start = rt_perf_read(RT_PERF_CYCLES);
 #endif
 
-	LinearLayer_SW_3(L2_input, L2_weights, Norm_Factor[11], L2_bias[11], NORM_BIAS_DENSE, L2_output[18], 0, 0);
+	LinearLayer_SW_3(L2_input, L2_weights, Norm_Factor[12], L2_bias[12], NORM_BIAS_DENSE, L2_output[18], 0, 0);
 
 #ifdef PROFILE_CL
 	perf_exe_cum_cl[18] = rt_perf_read(RT_PERF_CYCLES) - perf_start;
@@ -752,7 +816,7 @@ __rt_cluster_push_fc_event(event_capture);
 	check_layer(L2_output[18], 18);
 #endif
 
-	meta_free(memId_W, L3_sizes[11]);
+	meta_free(memId_W, L3_sizes[12]);
 	SPIM_tx[2] = L2_output[18][0];
 	meta_free(memId_O, outputSizesB[18]+2);
 
@@ -766,16 +830,16 @@ __rt_cluster_push_fc_event(event_capture);
 #endif
 
 	L2_output[19] = (short int *) meta_alloc(memId_O, outputSizesB[19]+2);
-	L2_weights = (short int *) meta_alloc(memId_W, L3_sizes[11]);
+	L2_weights = (short int *) meta_alloc(memId_W, L3_sizes[13]);
 
-	L3toL2(L3_weights[11], L2_weights, L3_sizes[11]);
+	L3toL2(L3_weights[13], L2_weights, L3_sizes[13]);
 
 #ifdef PROFILE_CL
 	perf_mem_cum_cl[19] = rt_perf_read(RT_PERF_CYCLES) - perf_start;
 	perf_start = rt_perf_read(RT_PERF_CYCLES);
 #endif
 
-	LinearLayer_SW_4(L2_input, L2_weights, Norm_Factor[11], L2_bias[11], NORM_BIAS_DENSE, L2_output[19], 0, 0);
+	LinearLayer_SW_4(L2_input, L2_weights, Norm_Factor[13], L2_bias[13], NORM_BIAS_DENSE, L2_output[19], 0, 0);
 
 #ifdef PROFILE_CL
 	perf_exe_cum_cl[19] = rt_perf_read(RT_PERF_CYCLES) - perf_start;
@@ -785,7 +849,7 @@ __rt_cluster_push_fc_event(event_capture);
 	check_layer(L2_output[19], 19);
 #endif
 
-	meta_free(memId_W, L3_sizes[11]);
+	meta_free(memId_W, L3_sizes[13]);
 	SPIM_tx[3] = L2_output[19][0];
 	meta_free(memId_O, outputSizesB[19]+2);
 
@@ -1024,6 +1088,9 @@ int main() {
 	Norm_Factor[9] = Q_Factor[9];
 	Norm_Factor[10] = Q_Factor[10];
 	Norm_Factor[11] = Q_Factor[11];
+	Norm_Factor[12] = Q_Factor[12];
+	Norm_Factor[13] = Q_Factor[13];
+
 
 	for(int i=0; i<NUM_L2_BUFF; i++) {
 		L2_base[i] = rt_alloc(RT_ALLOC_L2_CL_DATA, L2_buffers_size[i]);
@@ -1201,7 +1268,14 @@ int main() {
 #endif
 
 #ifdef VERBOSE
-		printf("Result[steer][coll]:\t%d\t%dt\t%d\t%d\n", SPIM_tx[0], SPIM_tx[1], SPIM_tx[2], SPIM_tx[3] );
+		float factor = 0.00048828125;
+		float x = factor * (float)(SPIM_tx[0]);
+		float y = factor * (float)(SPIM_tx[1]);
+		float z = factor * (float)(SPIM_tx[2]);
+		float phi = factor * (float)(SPIM_tx[3]);
+
+		//printf("Result[x][y][z][phi]:\t%f\t%f\t%f\t%f\n", x,y,z,phi);
+		//printf("Result[x][y][z][phi]:\t%d\t%d\t%d\t%d\n", SPIM_tx[0], SPIM_tx[1], SPIM_tx[2], SPIM_tx[3]);
 #endif
 
 		iter++;
