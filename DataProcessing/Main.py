@@ -12,7 +12,7 @@ def main():
 	# pickleName = config.folder_path + "/data/Hand/" + subject_name + "Hand.pickle"
 	# CreateDatasetFromRosbag(rosbagName, pickleName, isBebop=True, start_frame=None, end_frame=None)
 
-	subject_name = "10"
+	subject_name = "16"
 	rosbagName = config.folder_path + "/data/" + subject_name + ".bag"
 	pickleName = config.folder_path + "/data/" + subject_name + ".pickle"
 	print(rosbagName)

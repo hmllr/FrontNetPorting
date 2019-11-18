@@ -8,5 +8,5 @@
 
 #CUDA_VISIBLE_DEVICES=1
 
-python3 ETH.py --regime regime.json --epochs 1 --gray 1 --load-trainset "/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/PyTorch/train_vignette4.pickle" --quantize --load-testset "/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/PyTorch/test_vignette4.pickle" --load-model "Models/DronetGray-098.pt" --save-model "Models/DronetGray.pt" 
+python3 ETH.py --regime regime.json --epochs 10 --gray 1 --tensorboard 1 --quantize --load-trainset "/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/PyTorch/train_vignette4.pickle" --load-testset "/home/hanna/Documents/ETH/masterthesis/FrontNetPorting/PyTorch/test_vignette4.pickle" --save-model "Models/FindNetGray3232_3264_64128_quant8fromMaxPool2.pt" --load-model "../FindNetMaxPool2x2/Models/FindNetGray3232_3264_64128_maxpool2.pt"
 

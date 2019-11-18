@@ -647,7 +647,7 @@ class DatasetCreator:
                     if(imgshow == True):
                         cv2.imshow('image',cv_image)
                         cv2.waitKey(0)
-                        #cv2.imwrite('images/bebop/bebop_image.pgm', cv_image)
+                        cv2.imwrite('images/bebop/bebop_image.pgm', cv_image)
                     cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
                     if(imgshow == True):
                         cv2.imshow('imageGRAY',cv_image)
@@ -662,7 +662,7 @@ class DatasetCreator:
                     if(imgshow == True):
                         cv2.imshow('imageGAUSS',cv_image)
                         cv2.waitKey(0)
-                        #cv2.imwrite('images/bebop/gauss_image.pgm', cv_image) 
+                        cv2.imwrite('images/bebop/gauss_image.pgm', cv_image) 
                     generateHeadSamples = True
                     if generateHeadSamples:
                         print(x,y,z,yaw)
@@ -710,13 +710,13 @@ class DatasetCreator:
                     if(imgshow == True):
                         cv2.imshow('imageVIGNETTE',cv_image)
                         cv2.waitKey(0)
-                        #cv2.imwrite('images/bebop/vignette_image.pgm', cv_image)
+                        cv2.imwrite('images/bebop/vignette_image.pgm', cv_image)
                     cv_image = cv2.resize(cv_image, (config.input_width, config.input_height), cv2.INTER_NEAREST)
                     x_dataset.append(cv_image)  
                     if(imgshow == True):
                         cv2.imshow('imageRES',cv_image)
                         cv2.waitKey(0)
-                        #cv2.imwrite('images/bebop/res2_image.pgm', cv_image)
+                        cv2.imwrite('images/bebop/res2_image.pgm', cv_image)
                     if generateHeadSamples:
                         if head:
                             cv2.imwrite('images/bebop/head' + str(chunk) +'_'+ str(i)+ '.pgm', cv_image)

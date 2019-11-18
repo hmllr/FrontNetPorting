@@ -43,6 +43,7 @@ class DataProcessor:
         if fromCaltech:
             noPose = True
             train_set = pd.read_pickle(trainPath).values
+            train_set = train_set[0:60000]
             logging.info('[DataProcessor] train caltech shape: ' + str(train_set.shape))
             size = len(train_set[:, 0])
             n_val = int(float(size) * 0.2)
@@ -79,7 +80,8 @@ class DataProcessor:
         elif fromPics == False:
 
             train_set = pd.read_pickle(trainPath).values
-            #train_set = train_set[0:20000]
+            #train_set = train_set[0:50000]
+            train_set = train_set[0:63721]
 
             logging.info('[DataProcessor] train dario shape: ' + str(train_set.shape))
             size = len(train_set[:, 0])

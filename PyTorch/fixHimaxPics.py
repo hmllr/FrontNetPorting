@@ -17,7 +17,7 @@ sys.path.append("../DataProcessing/")
 import cv2
 from ImageTransformer import ImageTransformer
 
-for root, dirs, files in os.walk("train_himax_hanna/Dataset_Himax_NoHead/Take8/"):
+for root, dirs, files in os.walk("train_himax_hanna/Dataset_Himax_NoHead/take15"):
     for file in files:
         if file.endswith('.csv'):
             print(root, file)

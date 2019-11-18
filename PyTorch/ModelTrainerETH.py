@@ -34,7 +34,7 @@ class ModelTrainer:
             self.optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
         self.relax = None
         self.folderPath = "Models/"
-        self.classifierLossFactor = 1
+        self.classifierLossFactor = 10
         #self.train_losses_log = []
         #self.val_losses_log = []
 
@@ -383,7 +383,7 @@ class ModelTrainer:
     def Train(self, training_generator, validation_generator, tb=None):
 
         metrics = Metrics()
-        early_stopping = EarlyStopping(patience=10, verbose=True)
+        early_stopping = EarlyStopping(patience=30, verbose=True)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=np.sqrt(0.1),
                                                                     patience=5, verbose=False,
                                                                     threshold=0.0001, threshold_mode='rel', cooldown=0,
@@ -488,6 +488,7 @@ class ModelTrainer:
             DataVisualization.PlotGTVsEstimation(gt_labels_viz, y_pred_viz)
             #DataVisualization.PlotLossTest(self.train_losses_log, self.val_losses_log) #to display single and not averaged training/validation losses, uncomment there as well. Think about enough RAM
             DataVisualization.DisplayPlots()
+
 
     def PerdictSingleSample(self, test_generator):
 
