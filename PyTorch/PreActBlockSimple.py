@@ -20,10 +20,10 @@ class PreActBlockSimple(nn.Module):
 
 
     def forward(self, x):
-        shortcut = self.shortcut(x) if hasattr(self, 'shortcut') else x
+        #shortcut = self.shortcut(x) if hasattr(self, 'shortcut') else x
         out = self.conv1(x)
         out = self.bn2(out)
         out = self.relu2(out)
         out = self.conv2(out)
-        out += shortcut
+        #out += shortcut
         return out
