@@ -127,6 +127,9 @@
 #define CAM_HEIGHT		CAM_CROP_H
 #endif
 
+#define IMAGE_MAX_W		(((CAM_WIDTH*sizeof(unsigned char)) > (CAM_CROP_W*sizeof(short int))) ? (CAM_WIDTH*sizeof(unsigned char)) : (CAM_CROP_W*sizeof(short int)))
+#define IMAGE_MAX_H		(((CAM_HEIGHT*sizeof(unsigned char)) > (CAM_CROP_H*sizeof(short int))) ? (CAM_HEIGHT*sizeof(unsigned char)) : (CAM_CROP_H*sizeof(short int)))
+
 // preventing binary size inflating L2
 #if defined(CHECKSUM)
 #undef PROFILE_FC

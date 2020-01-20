@@ -1036,7 +1036,7 @@ int main() {
 	}
 
 	// allocate the memory of L2 for the image buffer
-	L2_image = rt_alloc(RT_ALLOC_L2_CL_DATA, CAM_CROP_W*CAM_CROP_H*sizeof(short int));
+	L2_image = rt_alloc(RT_ALLOC_L2_CL_DATA, IMAGE_MAX_W*IMAGE_MAX_H);
 #ifdef VERBOSE
 	printf("L2 Image alloc\t%dB\t@ 0x%08x:\t%s\n", CAM_CROP_W*CAM_CROP_H*sizeof(short int), (unsigned int) L2_image, L2_image?"Ok":"Failed");
 #endif
