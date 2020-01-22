@@ -17,6 +17,7 @@ import json
 import cv2
 import numpy as np
 import pandas as pd
+import nemo
 
 import logging
 
@@ -208,10 +209,11 @@ def LoadData(args):
             x_test = np.load(args.load_data + "testset_classifier_x.npy")
             y_test = np.load(args.load_data + "testset_classifier_y.npy")
 
-    print("Train size: ", np.shape(x_train), "Validation size: ", np.shape(x_validation), "Test size: ", np.shape(x_test))
+    print("Train size: ", np.shape(x_train), "Validation size: ", np.shape(x_validation), np.shape(y_validation), "Test size: ", np.shape(x_test))
 
     training_set = Dataset(x_train.astype(np.float32), y_train.astype(np.float32), True, isClassifier=True) 
-    validation_set = Dataset(x_validation.astype(np.float32), y_validation.astype(np.float32), isClassifier=True)
+    #validation_set = Dataset(x_validation.astype(np.float32), y_validation.astype(np.float32), isClassifier=True)
+    validation_set = Dataset(x_validation[:,:,:,:].astype(np.float32), y_validation[:].astype(np.float32), isClassifier=True)
     test_set = Dataset(x_test.astype(np.float32), y_test.astype(np.float32), isClassifier=False)
 
     # Parameters
@@ -227,6 +229,43 @@ def LoadData(args):
     test_loader = data.DataLoader(test_set, **params)
 
     return train_loader, validation_loader, test_loader
+
+def ExportONXX(model, model_inner, val_loader, validate):
+    #print(model)
+    model_inner = model
+    nemo.utils.export_onnx("frontnet/model_int.onnx", model, model_inner, (1, 60, 108), perm=None)
+
+    b_in, b_out, acc = nemo.utils.get_intermediate_activations(model_inner, validate, val_loader)
+    if acc != None:
+        logging.info("After integerize: %.2f%%" % (100*acc[0]))
+
+    try:
+        os.makedirs('frontnet/golden')
+    except Exception:
+        pass
+
+    from collections import OrderedDict
+    dory_dict = OrderedDict([])
+    #for key, value in b_in.items():
+    #    print(key, value)
+    # save super-node outputs as CSV files as golden reference
+    bidx = 0
+    #for x in model_inner.named_modules():
+    #    print(x)
+    for n,m in model_inner.named_modules():
+        try:
+            #print("n:%s" % n)
+            #print("bidx:%d" % bidx)
+            actbuf = b_in[n][0][bidx].permute((1,2,0))
+        except RuntimeError:
+            actbuf = b_in[n][0][bidx]
+        np.savetxt("frontnet/golden/golden_input_%s.txt" % n, actbuf.cpu().numpy().flatten(), header="input (shape %s)" % (list(actbuf.shape)), fmt="%.3f", delimiter=',', newline=',\n')
+    for n,m in model_inner.named_modules():
+        try:
+            actbuf = b_out[n][bidx].permute((1,2,0))
+        except RuntimeError:
+            actbuf = b_out[n][bidx]
+        np.savetxt("frontnet/golden/golden_%s.txt" % n, actbuf.cpu().numpy().flatten(), header="%s (shape %s)" % (n, list(actbuf.shape)), fmt="%.3f", delimiter=',', newline=',\n')
 
 def main():
     # Training settings
@@ -299,7 +338,7 @@ def main():
     else:
         trainer = ModelTrainer(model, args, regime)
         if args.quantize:
-            trainer.Quantize(validation_loader)
+            trainer.Quantize(validation_loader, test_loader)
 
         if args.predictonly is None:
             if args.tensorboard is not None:
@@ -315,10 +354,11 @@ def main():
             else:
                 trainer.Train(train_loader, validation_loader)
         trainer.Predict(test_loader)
-
+        ExportONXX(model, model, validation_loader, trainer.ValidateSingleEpoch)
         if args.save_model is not None:
             #torch.save(trainer.model.state_dict(), args.save_model)
             ModelManager.Write(trainer.GetModel(), 100, args.save_model)
+        trainer.Predict(test_loader)
 
 if __name__ == '__main__':
     main()

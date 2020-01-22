@@ -97,6 +97,7 @@ def LoadData(args):
     return train_loader, validation_loader, test_loader
 
 
+
 def main():
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch FrontNet')
@@ -154,7 +155,7 @@ def main():
             from torch.utils.tensorboard import SummaryWriter
             images, labels = next(iter(train_loader))
             grid = torchvision.utils.make_grid(images)
-            tb = SummaryWriter(comment="FindNetGray3232_3264_64128_quant8fromMaxPool2")#(comment="COBNRLMPL2BNRELUL2(64x64/2)BNRLL3APFCRLFCRL")
+            tb = SummaryWriter(comment="FindNetGray3layer_nores")#(comment="COBNRLMPL2BNRELUL2(64x64/2)BNRLL3APFCRLFCRL")
             tb.add_image('images', grid)
             #tb.add_graph(model, images)
 
@@ -162,7 +163,7 @@ def main():
         else:
             trainer.Train(train_loader, validation_loader)
     trainer.Predict(test_loader)
-
+    
     if args.save_model is not None:
         #torch.save(trainer.model.state_dict(), args.save_model)
         ModelManager.Write(trainer.GetModel(), 100, args.save_model)

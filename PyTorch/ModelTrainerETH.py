@@ -41,124 +41,116 @@ class ModelTrainer:
     def GetModel(self):
         return self.model
 
-    def Quantize(self, validation_loader):
+    def PrintClassifierAccuracy(self, text, loader):
+        acc, y_pred, gt_labels = self.ValidateSingleEpoch(loader)
+        logging.info(text % acc)
 
-        valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
-            validation_loader)
-        acc = float(1) / (valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi)
-        print("[ModelTrainer]: Before quantization process: %f" % acc)
+    def Quantize(self, validation_loader, test_loader, deploy=True):
+        if not self.model.isClassifier:
+            print("Implementation for quantization of non classifier is missing")
+            return
+        self.PrintClassifierAccuracy("[ModelTrainer]: Test accuracy before quantization process: %f", test_loader)  
 
         # [NeMO] This call "transforms" the model into a quantization-aware one, which is printed immediately afterwards.
-        self.model = nemo.transform.quantize_pact(self.model)
+        self.model = nemo.transform.quantize_pact(self.model, dummy_input=torch.ones((1,1,60,108)).cuda())
         logging.info("[ModelTrainer] Model: %s", self.model)
         # [NeMO] NeMO re-training usually converges better using an Adam optimizer, and a smaller learning rate
         # optimizer = torch.optim.Adam(self.model.parameters(), lr=float(self.regime['lr']),
         #                              weight_decay=float(self.regime['weight_decay']))
 
-        # [NeMO] DNNs that do not employ batch normalization layers nor have clipped activations (e.g. ReLU6) require
-        # an initial calibration to transfer to a quantization-aware version. This is used to calibrate the scaling
-        # parameters of quantization-aware activation layers to the point defined by the maximum activation value
-        # seen during a validation run. DNNs that employ BN or ReLU6 (or both) do not require this operation, as their
-        # activations are already statistically bounded in terms of dynamic range.
-        # logging.info("[ModelTrainer] Gather statistics for non batch-normed activations")
+        if deploy:
+            self.model.set_statistics_act()
+            self.PrintClassifierAccuracy("[ModelTrainer] statistics %.2f", validation_loader)
+            self.model.unset_statistics_act()
+            self.model.reset_alpha_act()
+            
+            # [NeMO] Change precision and reset weight clipping parameters
+            self.model.change_precision(bits=8, reset_alpha=True, min_prec_dict = { 'conv' : { 'W_bits' : 8 } })
+            
+            nemo.transform.bn_quantizer(self.model)
+    
+            self.model.harden_weights()
 
-        # dict = {"layer1.conv1": "layer1.bn1",
-        # "layer1.conv2": "layer1.bn2",
-        # "layer2.conv2": "layer2.bn2"}
-        # self.model.fold_bn(OrderedDict(dict))
-        # dict = {"layer1.conv1": "layer1.bn2",
-        #     "layer1.conv2": "layer2.bn1",
-        #     "layer1.shortcut": "layer2.bn1",
-        #     "layer2.conv1": "layer2.bn2",
-        #     "layer2.conv2": "layer3.bn1",
-        #     "layer2.shortcut": "layer3.bn1",
-        #     "layer3.conv1": "layer3.bn2"}
-        # self.model.fold_bn(OrderedDict(dict))
+            ''''b_in, b_out, acc = nemo.utils.get_intermediate_activations(self.model, self.ValidateSingleEpoch, validation_loader)
+            bidx = 0
+            for n,m in self.model.named_modules():
+                try:
+                    actbuf = b_in[n][0][bidx].permute((1,2,0))
+                except RuntimeError:
+                    actbuf = b_in[n][0][bidx]
+                except Exception as e:
+                    print(e)
+                    continue
+                np.savetxt("frontnet/before_deploy/before_deploy_input_%s.txt" % n, actbuf.cpu().numpy().flatten(), header="input (shape %s)" % (list(actbuf.shape)), fmt="%.3f", delimiter=',', newline=',\n')
+            for n,m in self.model.named_modules():
+                try:
+                    actbuf = b_out[n][bidx].permute((1,2,0))
+                except RuntimeError:
+                    actbuf = b_out[n][bidx]
+                except Exception as e:
+                    print(e)
+                    continue
+                np.savetxt("frontnet/before_deploy/before_deploy_%s.txt" % n, actbuf.cpu().numpy().flatten(), header="%s (shape %s)" % (n, list(actbuf.shape)), fmt="%.3f", delimiter=',', newline=',\n')
+'''
+            #self.model.equalize_weights_unfolding({'conv':'bn32_1'})
 
-        # first block folding
+            logging.info("[MNIST] Setting deployment mode with eps_in=1.0/255...")
+            self.model.set_deployment(eps_in=1.0/255)
 
-        '''self.model.fold_bn_withinv(bn_dict={
-            "conv": "layer1.bn1",
-            "layer1.conv1": "layer1.bn2",
-        },
-            bn_inv_dict={
-                "layer1.shortcut": "layer1.bn1",
-            })
+            self.PrintClassifierAccuracy("[MNIST] After deployment mode: %.2f%%", test_loader)
+            '''b_in, b_out, acc = nemo.utils.get_intermediate_activations(self.model, self.ValidateSingleEpoch, validation_loader)
 
-        # second block folding
-        self.model.fold_bn_withinv(bn_dict={
-            "layer1.conv2": "layer2.bn1",
-            "layer1.shortcut": "layer2.bn1",
-            "layer2.conv1": "layer2.bn2",
-        },
-            bn_inv_dict={
-                "layer2.shortcut": "layer2.bn1",
-            })
-
-        # third block folding
-        self.model.fold_bn_withinv(bn_dict={
-            "layer2.conv2": "layer3.bn1",
-            "layer2.shortcut": "layer3.bn1",
-            "layer3.conv1": "layer3.bn2",
-        },
-            bn_inv_dict={
-                "layer3.shortcut": "layer3.bn1",
-            })
-        valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
-            validation_loader)
-        acc = float(1) / (valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi)
-        print("[ModelTrainer]: After BN folding: %f" % acc)'''
-
-
-        self.model.set_statistics_act()
-        valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
-            validation_loader)
-        acc = float(1) / (valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi)
-        self.model.unset_statistics_act()
-        self.model.reset_alpha_act()
-        logging.info("[ModelTrainer] statistics %.2f" % acc)
-
-        precision_rule = self.regime['relaxation']
-
-        # [NeMO] Change precision and reset weight clipping parameters
-        self.model.change_precision(bits=8)
-        self.model.reset_alpha_weights()
-        # [NeMO] Export legacy-style INT-16 weights. Clipping parameters are changed!
-        self.model.export_weights_legacy_int8()
-        # [NeMO] Re-check validation accuracy
-        valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
-            validation_loader)
-        acc = float(1) / (valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi)
-        print("[ModelTrainer]: After export: %f" % acc)
+            for n,m in self.model.named_modules():
+                try:
+                    actbuf = b_in[n][0][bidx].permute((1,2,0))
+                except RuntimeError:
+                    actbuf = b_in[n][0][bidx]
+                except Exception as e:
+                    print(e)
+                    continue
+                np.savetxt("frontnet/after_deploy/after_deploy_input_%s.txt" % n, actbuf.cpu().numpy().flatten(), header="input (shape %s)" % (list(actbuf.shape)), fmt="%.3f", delimiter=',', newline=',\n')
+            for n,m in self.model.named_modules():
+                try:
+                    actbuf = b_out[n][bidx].permute((1,2,0))
+                except RuntimeError:
+                    actbuf = b_out[n][bidx]
+                except Exception as e:
+                    print(e)
+                    continue
+                np.savetxt("frontnet/after_deploy/after_deploy_%s.txt" % n, actbuf.cpu().numpy().flatten(), header="%s (shape %s)" % (n, list(actbuf.shape)), fmt="%.3f", delimiter=',', newline=',\n')
+'''
 
 
-        # [NeMO] The evaluation engine performs a simple grid search to decide, among the possible quantization configurations,
-        # which one is the most promising step for the relaxation procedure. It uses an internal heuristic binning validation
-        # results in top-bin (high accuracy), middle-bin (reduced accuracy, but not garbage) and bottom-bin (garbage results).
-        # It typically selects a step from the middle-bin to maximize training speed without sacrificing the final results.
-        # evale = nemo.evaluation.EvaluationEngine(self.model, precision_rule=precision_rule,
-        #                                          validate_fn=self.ValidateSingleEpoch,
-        #                                          validate_data=validation_loader)
-        # # while evale.step():
-        #     valid_loss_x, valid_loss_y, valid_loss_z, valid_loss_phi, y_pred, gt_labels = self.ValidateSingleEpoch(
-        #         validation_loader)
-        #     acc = torch.tensor(float(1) / (valid_loss_x + valid_loss_y + valid_loss_z + valid_loss_phi))
-        #     evale.report(acc)
-        #     logging.info("[ModelTrainer] %.1f-bit W, %.1f-bit x: %.2f" % (
-        #         evale.wgrid[evale.idx], evale.xgrid[evale.idx], acc))
-        #Wbits, xbits = evale.get_next_config(upper_threshold=0.97)
-        # Wbits = 16
-        # xbits = 16
-        # precision_rule['0']['W_bits'] = min(Wbits, precision_rule['0']['W_bits'])
-        # precision_rule['0']['x_bits'] = min(xbits, precision_rule['0']['x_bits'])
-        # logging.info("[ModelTrainer] Choosing %.1f-bit W, %.1f-bit x for first step" % (
-        #     precision_rule['0']['W_bits'], precision_rule['0']['x_bits']))
-        #
-        # # [NeMO] The relaxation engine can be stepped to automatically change the DNN precisions and end training if the final
-        # # target has been achieved.
-        # self.relax = nemo.relaxation.RelaxationEngine(self.model, optimizer, criterion=None, trainloader=None,
-        #                                          precision_rule=precision_rule, reset_alpha_weights=False,
-        #                                          min_prec_dict=None, evaluator=evale)
+            logging.info("[MNIST] Integerizing with eps_in=1.0/255...")
+            self.model = nemo.transform.integerize_pact(self.model, 1.0/255)
+            self.PrintClassifierAccuracy("[MNIST] After integerization: %.2f%%", test_loader)
+
+        else:
+
+            self.model.set_statistics_act()
+            self.PrintClassifierAccuracy("[ModelTrainer] statistics %.2f", validation_loader)            
+            self.model.unset_statistics_act()
+            self.model.reset_alpha_act()
+
+
+            precision_rule = self.regime['relaxation']
+
+            evale = nemo.evaluation.EvaluationEngine(self.model, precision_rule=precision_rule, validate_fn=self.ValidateSingleEpoch, validate_data=validation_loader)
+            while evale.step():
+                loss, y_pred, gt_labels = self.ValidateSingleEpoch(validation_loader)
+                acc = float(1) / loss
+                evale.report(acc)
+                logging.info("[MNIST] %.1f-bit W, %.1f-bit x: %.2f%%" % (evale.wgrid[evale.idx], evale.xgrid[evale.idx], 100*acc))
+            Wbits, xbits = evale.get_next_config(upper_threshold=0.97)
+            precision_rule['0']['W_bits'] = min(Wbits, precision_rule['0']['W_bits'])
+            precision_rule['0']['x_bits'] = min(xbits, precision_rule['0']['x_bits'])
+            logging.info("[MNIST] Choosing %.1f-bit W, %.1f-bit x for first step" % (precision_rule['0']['W_bits'], precision_rule['0']['x_bits']))
+        
+            # [NeMO] The relaxation engine can be stepped to automatically change the DNN precisions and end training if the final
+            # target has been achieved.
+            relax = nemo.relaxation.RelaxationEngine(self.model, optimizer, criterion=None, trainloader=None, precision_rule=precision_rule, reset_alpha_weights=False, min_prec_dict=None, evaluator=evale)
+
+            
 
 
 
