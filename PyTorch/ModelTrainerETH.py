@@ -67,6 +67,8 @@ class ModelTrainer:
             # [NeMO] Change precision and reset weight clipping parameters
             self.model.change_precision(bits=8, reset_alpha=True, min_prec_dict = { 'conv' : { 'W_bits' : 8 } })
             
+            #self.model.equalize_weights_unfolding({'conv':'bn32_1'})
+
             nemo.transform.bn_quantizer(self.model)
     
             self.model.harden_weights()
@@ -92,7 +94,7 @@ class ModelTrainer:
                     continue
                 np.savetxt("frontnet/before_deploy/before_deploy_%s.txt" % n, actbuf.cpu().numpy().flatten(), header="%s (shape %s)" % (n, list(actbuf.shape)), fmt="%.3f", delimiter=',', newline=',\n')
 '''
-            #self.model.equalize_weights_unfolding({'conv':'bn32_1'})
+            
 
             logging.info("[MNIST] Setting deployment mode with eps_in=1.0/255...")
             self.model.set_deployment(eps_in=1.0/255)
@@ -713,3 +715,4 @@ class ModelTrainer:
                 ,epoch)
         except Exception as e:
             print(e)
+

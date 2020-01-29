@@ -73,35 +73,46 @@ class FindNet(nn.Module):
 
     def forward(self, x):
         self.i += 1
+        print("x:",x[0][0][0])
         out = self.conv(x)
+        print("c1:",out[0][0][0])
         out = self.bn32_1(out)
+        print("bn1:",out[0][0][0])
         out = self.relu1(out)
+        print("relu1:",out[0][0][0])
         #np.savetxt("frontnet/after_relu1%d.txt" % self.i, out.cpu().detach().numpy().flatten(), header="layer 3 output (batch %d)" % (self.i), fmt="%.3f", delimiter=',', newline=',\n')
         out = self.maxpool(out)
         out = self.layer1(out)
         out = self.bn32_2(out)
         out = self.relu2(out)
+        #print("l1:",out[0][0][0])
         #np.savetxt("frontnet/after_relu2%d.txt" % self.i, out.cpu().detach().numpy().flatten(), header="layer 3 output (batch %d)" % (self.i), fmt="%.3f", delimiter=',', newline=',\n')
         #out = self.dropout1(out)
         out = self.layer2(out)
         out = self.bn64(out)
         out = self.relu3(out)
+        #print("l2:",out[0][0][0])
         #np.savetxt("frontnet/after_relu3%d.txt" % self.i, out.cpu().detach().numpy().flatten(), header="layer 3 output (batch %d)" % (self.i), fmt="%.3f", delimiter=',', newline=',\n')
         #out = self.dropout2(out)
         out = self.layer3(out)
+        #print("l3:",out[0][0][0])
         #np.savetxt("frontnet/before_avg%d.txt" % self.i, out.cpu().detach().numpy().flatten(), header="layer 3 output (batch %d)" % (self.i), fmt="%.3f", delimiter=',', newline=',\n')
         out = self.avg_pool(out)
+        #print("avg:",out[0][0])
 
         out = out.view(out.size(0), -1)
         #np.savetxt("frontnet/after_avg%d.txt" % self.i, out.cpu().detach().numpy().flatten(), header="layer avg output (batch %d)" % (self.i), fmt="%.3f", delimiter=',', newline=',\n')
         #out = self.dropout3(out)
         head = self.fc_class(out)
+        print("head:", head)
         if self.isCombined:
             return [x, y, z, phi, self.sig(head)]
         elif self.isClassifier:
             out = self.sig(head)
+            #print(out[0])
             #np.savetxt("frontnet/sigmoid%d.txt" % self.i, head.cpu().detach().numpy().flatten(), header="sigmoid output (batch %d)" % (self.i), fmt="%.3f", delimiter=',', newline=',\n')
             return out
 
         return [x, y, z, phi]
+
 

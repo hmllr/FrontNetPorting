@@ -232,10 +232,10 @@ def LoadData(args):
 
 def ExportONXX(model, model_inner, val_loader, validate):
     #print(model)
-    model_inner = model
+    #model_inner = model
     nemo.utils.export_onnx("frontnet/model_int.onnx", model, model_inner, (1, 60, 108), perm=None)
 
-    b_in, b_out, acc = nemo.utils.get_intermediate_activations(model_inner, validate, val_loader)
+    '''b_in, b_out, acc = nemo.utils.get_intermediate_activations(model_inner, validate, val_loader)
     if acc != None:
         logging.info("After integerize: %.2f%%" % (100*acc[0]))
 
@@ -265,7 +265,7 @@ def ExportONXX(model, model_inner, val_loader, validate):
             actbuf = b_out[n][bidx].permute((1,2,0))
         except RuntimeError:
             actbuf = b_out[n][bidx]
-        np.savetxt("frontnet/golden/golden_%s.txt" % n, actbuf.cpu().numpy().flatten(), header="%s (shape %s)" % (n, list(actbuf.shape)), fmt="%.3f", delimiter=',', newline=',\n')
+        np.savetxt("frontnet/golden/golden_%s.txt" % n, actbuf.cpu().numpy().flatten(), header="%s (shape %s)" % (n, list(actbuf.shape)), fmt="%.3f", delimiter=',', newline=',\n')'''
 
 def main():
     # Training settings
@@ -354,11 +354,12 @@ def main():
             else:
                 trainer.Train(train_loader, validation_loader)
         trainer.Predict(test_loader)
+        print(model)
         ExportONXX(model, model, validation_loader, trainer.ValidateSingleEpoch)
         if args.save_model is not None:
             #torch.save(trainer.model.state_dict(), args.save_model)
             ModelManager.Write(trainer.GetModel(), 100, args.save_model)
         trainer.Predict(test_loader)
-
+        print(model)
 if __name__ == '__main__':
     main()
