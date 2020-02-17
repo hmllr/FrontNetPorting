@@ -113,7 +113,7 @@ def LoadData(args):
             #   load no head pictures from DroNet and recorded by me (Hanna) 
             if args.load_trainpics_nohead is not None:
                 [x_train_nohead, x_validation_nohead, y_train_nohead, y_validation_nohead] = DataProcessor.ProcessTrainData(
-                    None, 60, 108, isGray=True, isClassifier=True, fromPics=True, picsPath=args.load_trainpics_nohead, head=False)
+                    None, 60, 108, isGray=True, isClassifier=True, onlyHimax=True, picsPath=args.load_trainpics_nohead, head=False)
                 x_train = HelperConcat2(x_train, x_train_nohead)
                 y_train = HelperConcat2(y_train, y_train_nohead)
                 x_validation = HelperConcat2(x_validation, x_validation_nohead)
@@ -122,7 +122,7 @@ def LoadData(args):
             #   load head pictures recorded by me (Hanna)
             if args.load_trainpics_head is not None: 
                 [x_train_head_pics, x_validation_head_pics, y_train_head_pics, y_validation_head_pics] = DataProcessor.ProcessTrainData(
-                    None, 60, 108, isGray=True, isClassifier=True, fromPics=True, picsPath=args.load_trainpics_head, head=True)
+                    None, 60, 108, isGray=True, isClassifier=True, onlyHimax=True, picsPath=args.load_trainpics_head, head=True)
                 x_train = HelperConcat2(x_train, x_train_head_pics)
                 y_train = HelperConcat2(y_train, y_train_head_pics)
                 x_validation = HelperConcat2(x_validation, x_validation_head_pics)

@@ -40,6 +40,31 @@ class DataProcessor:
             list
                 list of video frames and list of labels (poses)
             """
+        if onlyHimax:
+            noPose = True
+            x_train = []
+            y_train = []
+            size = 0
+            countAugmented = 0
+            countDarioSamples = 0
+            for root, dirs, files in os.walk(picsPath):
+                for file in files:
+                    isAugnmented = False
+                    isValidation = False
+                    if file.endswith('.pgm'):
+                        X = cv2.imread(root +'/'+ file, 0)
+                        x_train.append(X)
+            x_train = np.asarray(x_train)
+            x_train = np.reshape(x_train, (-1, image_height, image_width, 1))
+            x_train = np.swapaxes(x_train, 1, 3)
+            x_train = np.swapaxes(x_train, 2, 3)
+            logging.info('[DataProcessor] train pics number: ' + str(x_train.shape()) + ' head: ' + str(head))
+            n_val = int(float(size) * 0.2)
+            print(n_val)
+            ix_val, ix_tr = np.split(np.random.permutation(size), [n_val])
+            x_validation = x_train[ix_val, :]
+            x_train = x_train[ix_tr, :]
+
         if fromCaltech:
             noPose = True
             train_set = pd.read_pickle(trainPath).values
