@@ -75,6 +75,10 @@ def Parse(parser):
                         help='for loading no head train pictures')
     parser.add_argument('--load-trainpics-head', default=None, type=str,
                         help='for loading head train pictures')
+    parser.add_argument('--load-trainpics-head-small', default=None, type=str,
+                        help='for loading head train pictures already cropped/downsampled')
+    parser.add_argument('--load-trainpics-head-pickle', default=None, type=str,
+                        help='for loading head train pictures from pickle')
     parser.add_argument('--load-testpics-head', default=None, type=str,
                         help='for loading head test pictures')
     parser.add_argument('--load-testpics-nohead', default=None, type=str,
@@ -108,7 +112,7 @@ def LoadData(args):
             #   load head pose labeled data ("darios dataset")
             if args.load_trainset is not None:
                 [x_train, x_validation, y_train, y_validation] = DataProcessor.ProcessTrainData(
-                    args.load_trainset, 60, 108, isGray=True, isClassifier=True, fromPics=False)
+                    args.load_trainset, 60, 108, isGray=True, isClassifier=True, fromPics=False, head=True)
                 print("train shape", np.shape(x_train))
             #   load no head pictures from DroNet and recorded by me (Hanna) 
             if args.load_trainpics_nohead is not None:
@@ -120,9 +124,25 @@ def LoadData(args):
                 y_validation = HelperConcat2(y_validation, y_validation_nohead)
                 print("train shape", np.shape(x_train))
             #   load head pictures recorded by me (Hanna)
+            if args.load_trainpics_head_small is not None: 
+                [x_train_head_pics, x_validation_head_pics, y_train_head_pics, y_validation_head_pics] = DataProcessor.ProcessTrainData(
+                    None, 60, 108, isGray=True, isClassifier=True, onlyHimax=True, picsPath=args.load_trainpics_head_small, head=True)
+                x_train = HelperConcat2(x_train, x_train_head_pics)
+                y_train = HelperConcat2(y_train, y_train_head_pics)
+                x_validation = HelperConcat2(x_validation, x_validation_head_pics)
+                y_validation = HelperConcat2(y_validation, y_validation_head_pics)
+                print("train shape", np.shape(x_train))
             if args.load_trainpics_head is not None: 
                 [x_train_head_pics, x_validation_head_pics, y_train_head_pics, y_validation_head_pics] = DataProcessor.ProcessTrainData(
-                    None, 60, 108, isGray=True, isClassifier=True, onlyHimax=True, picsPath=args.load_trainpics_head, head=True)
+                    None, 60, 108, isGray=True, isClassifier=True, fromPics=True, picsPath=args.load_trainpics_head, head=True)
+                x_train = HelperConcat2(x_train, x_train_head_pics)
+                y_train = HelperConcat2(y_train, y_train_head_pics)
+                x_validation = HelperConcat2(x_validation, x_validation_head_pics)
+                y_validation = HelperConcat2(y_validation, y_validation_head_pics)
+                print("train shape", np.shape(x_train))
+            if args.load_trainpics_head_pickle is not None: 
+                [x_train_head_pics, x_validation_head_pics, y_train_head_pics, y_validation_head_pics] = DataProcessor.ProcessTrainData(
+                    None, 60, 108, isGray=True, isClassifier=True, isExtended=True, picsPath=args.load_trainpics_head_pickl, head=True)
                 x_train = HelperConcat2(x_train, x_train_head_pics)
                 y_train = HelperConcat2(y_train, y_train_head_pics)
                 x_validation = HelperConcat2(x_validation, x_validation_head_pics)

@@ -18,7 +18,7 @@ from ImageTransformer import ImageTransformer
 class DataProcessor:
 
     @staticmethod
-    def ProcessTrainData(trainPath, image_height, image_width, isGray = False, isExtended=False, isClassifier=False, fromPics=False, picsPath=None, isCombined=False, noPose=False, fromCaltech=False, head=False):
+    def ProcessTrainData(trainPath, image_height, image_width, isGray = False, isExtended=False, isClassifier=False, fromPics=False, picsPath=None, isCombined=False, noPose=False, fromCaltech=False, head=False, onlyHimax=False):
         """Reads the .pickle file and converts it into a format suitable fot training
 
             Parameters
@@ -58,14 +58,15 @@ class DataProcessor:
             x_train = np.reshape(x_train, (-1, image_height, image_width, 1))
             x_train = np.swapaxes(x_train, 1, 3)
             x_train = np.swapaxes(x_train, 2, 3)
-            logging.info('[DataProcessor] train pics number: ' + str(x_train.shape()) + ' head: ' + str(head))
-            n_val = int(float(size) * 0.2)
+            size = np.shape(x_train)
+            logging.info('[DataProcessor] train pics number: ' + str(size) + ' head: ' + str(head))
+            n_val = int(float(size[0]) * 0.2)
             print(n_val)
-            ix_val, ix_tr = np.split(np.random.permutation(size), [n_val])
+            ix_val, ix_tr = np.split(np.random.permutation(size[0]), [n_val])
             x_validation = x_train[ix_val, :]
             x_train = x_train[ix_tr, :]
 
-        if fromCaltech:
+        elif fromCaltech:
             noPose = True
             train_set = pd.read_pickle(trainPath).values
             train_set = train_set[0:60000]
@@ -442,6 +443,7 @@ class DataProcessor:
                         X = cv2.imread(root +'/'+ file, 0)
                         try:
                             X = np.reshape(X, (244, 324))
+                            X = X[30:210:3,0:324:3]
                             #X = X[0:200,20:300]
                         except ValueError:
                             X = np.reshape(X, (config.input_height, config.input_width))
